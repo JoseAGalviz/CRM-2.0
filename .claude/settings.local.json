@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//home/araque/Documentos/Projects/profit-api/**)",
+      "Read(//home/araque/Documentos/Projects/gestionPedidos/**)",
+      "Read(//home/araque/Documentos/Projects/Api-auditoria/**)",
+      "Read(//home/araque/Documentos/Projects/centroTransferencias/**)",
+      "Bash(npm create:*)",
+      "Bash(gcc --version)",
+      "Bash(npm install:*)",
+      "Bash(npm rebuild:*)"
+    ]
+  }
+}
