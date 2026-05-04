@@ -5,6 +5,7 @@ import { formatCurrency, formatDate } from '../utils/formatters'
 import { exportToCSV, COMPANY_COLUMNS } from '../utils/export'
 import { COMPANY_SIZES, INDUSTRIES } from '../utils/constants'
 import toast from 'react-hot-toast'
+import { BuildingIcon } from '../components/ui/icons'
 import Modal from '../components/ui/Modal'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import Pagination from '../components/ui/Pagination'
@@ -86,7 +87,7 @@ export default function CompaniesPage() {
         {loading ? (
           <div className="flex justify-center py-16"><Spinner /></div>
         ) : companies.length === 0 ? (
-          <EmptyState icon="🏢" title="Sin empresas" description="Agrega tu primera empresa"
+          <EmptyState icon={<BuildingIcon className="w-7 h-7" />} title="Sin empresas" description="Agrega tu primera empresa"
             action={<button onClick={openCreate} className="btn-primary">Agregar empresa</button>} />
         ) : (
           <>
@@ -126,7 +127,9 @@ export default function CompaniesPage() {
             <div className="md:hidden divide-y divide-gray-100">
               {companies.map(c => (
                 <Link key={c.id} to={`/companies/${c.id}`} className="flex items-center gap-3 p-4 hover:bg-gray-50">
-                  <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center text-lg">🏢</div>
+                  <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center text-purple-500">
+                    <BuildingIcon className="w-5 h-5" />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-900">{c.name}</p>
                     <p className="text-sm text-gray-500">{c.industry || '—'} · {sizeLabel(c.size)}</p>

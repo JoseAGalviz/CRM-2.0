@@ -7,6 +7,7 @@ import ConfirmDialog from '../components/ui/ConfirmDialog'
 import EmptyState from '../components/ui/EmptyState'
 import Spinner from '../components/ui/Spinner'
 import Pagination from '../components/ui/Pagination'
+import { DocumentTextIcon } from '../components/ui/icons'
 
 const initForm = { content: '', contact_id: '', deal_id: '' }
 
@@ -73,7 +74,7 @@ export default function NotesPage() {
       {loading ? (
         <div className="flex justify-center py-16"><Spinner /></div>
       ) : notes.length === 0 ? (
-        <EmptyState icon="📝" title="Sin notas" description="Crea tu primera nota"
+        <EmptyState icon={<DocumentTextIcon className="w-7 h-7" />} title="Sin notas" description="Crea tu primera nota"
           action={<button onClick={openCreate} className="btn-primary">Crear nota</button>} />
       ) : (
         <>

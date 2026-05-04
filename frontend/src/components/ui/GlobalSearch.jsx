@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import client from '../../api/client'
 import { DEAL_STAGES } from '../../utils/constants'
 import Spinner from './Spinner'
+import { UserIcon, BuildingIcon, BriefcaseIcon } from './icons'
 
 function useDebounce(value, delay) {
   const [debounced, setDebounced] = useState(value)
@@ -78,7 +79,11 @@ export default function GlobalSearch({ isOpen, onClose }) {
 
   if (!isOpen) return null
 
-  const typeIcon = { contact: '👤', company: '🏢', deal: '💼' }
+  const typeIcon = {
+    contact: <UserIcon className="w-4 h-4" />,
+    company: <BuildingIcon className="w-4 h-4" />,
+    deal:    <BriefcaseIcon className="w-4 h-4" />,
+  }
   const typeLabel = { contact: 'Contacto', company: 'Empresa', deal: 'Negocio' }
 
   return (
@@ -118,7 +123,7 @@ export default function GlobalSearch({ isOpen, onClose }) {
                       onClick={() => go(item)}
                       onMouseEnter={() => setCursor(i)}
                     >
-                      <span className="text-lg flex-shrink-0">{typeIcon[item.type]}</span>
+                      <span className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 text-gray-500">{typeIcon[item.type]}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">
                           {highlight(item.primary, debouncedQuery)}

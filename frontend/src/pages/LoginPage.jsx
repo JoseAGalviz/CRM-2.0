@@ -3,19 +3,20 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
 import Spinner from '../components/ui/Spinner'
+import { UsersIcon, BriefcaseIcon, ChartBarIcon, ChatIcon, MailIcon } from '../components/ui/icons'
 
 const features = [
-  { icon: '👥', text: 'Gestión de contactos y empresas' },
-  { icon: '💼', text: 'Pipeline de negocios visual' },
-  { icon: '📊', text: 'Dashboard con métricas en tiempo real' },
-  { icon: '💬', text: 'Chat interno con notificaciones' },
+  { Icon: UsersIcon,     label: 'Gestión de contactos y empresas',       color: 'bg-violet-500/20 text-violet-300' },
+  { Icon: BriefcaseIcon, label: 'Pipeline de negocios visual',            color: 'bg-blue-500/20   text-blue-300'   },
+  { Icon: ChartBarIcon,  label: 'Dashboard con métricas en tiempo real',  color: 'bg-emerald-500/20 text-emerald-300' },
+  { Icon: ChatIcon,      label: 'Chat interno con notificaciones',         color: 'bg-amber-500/20  text-amber-300'  },
 ]
 
 export default function LoginPage() {
-  const [form, setForm]     = useState({ email: '', password: '' })
+  const [form, setForm]       = useState({ email: '', password: '' })
   const [loading, setLoading] = useState(false)
-  const { login }   = useAuth()
-  const navigate    = useNavigate()
+  const { login }             = useAuth()
+  const navigate              = useNavigate()
 
   const handle = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }))
 
@@ -49,14 +50,14 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* ── Left panel (desktop) ───────────────────────────────────────────── */}
       <div className="hidden lg:flex flex-col justify-between w-[44%] bg-slate-900 p-12 relative overflow-hidden">
-        {/* Background orbs */}
         <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full bg-violet-700/20 blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 right-0 w-96 h-96 rounded-full bg-purple-900/30 blur-3xl pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full bg-indigo-800/10 blur-2xl pointer-events-none" />
 
         <div className="relative z-10">
           {/* Logo */}
           <div className="flex items-center gap-3 mb-16">
-            <div className="w-9 h-9 bg-gradient-to-br from-violet-500 to-purple-700 rounded-xl flex items-center justify-center shadow-lg">
+            <div className="w-9 h-9 bg-gradient-to-br from-violet-500 to-purple-700 rounded-xl flex items-center justify-center shadow-lg shadow-violet-900/50">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
@@ -66,17 +67,21 @@ export default function LoginPage() {
 
           <h2 className="text-4xl font-bold text-white leading-tight mb-4">
             Gestiona tus<br />clientes de forma<br />
-            <span className="text-violet-400">inteligente</span>
+            <span className="bg-gradient-to-r from-violet-400 to-purple-300 bg-clip-text text-transparent">
+              inteligente
+            </span>
           </h2>
           <p className="text-slate-400 text-base mb-10 leading-relaxed">
             Centraliza contactos, negocios y actividades.<br />Tu equipo, sincronizado.
           </p>
 
-          <ul className="space-y-4">
-            {features.map((f, i) => (
-              <li key={i} className="flex items-center gap-3">
-                <span className="text-lg leading-none">{f.icon}</span>
-                <span className="text-slate-300 text-sm">{f.text}</span>
+          <ul className="space-y-3">
+            {features.map(({ Icon, label, color }, i) => (
+              <li key={i} className="flex items-center gap-3.5">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${color}`}>
+                  <Icon className="w-4 h-4" />
+                </div>
+                <span className="text-slate-300 text-sm">{label}</span>
               </li>
             ))}
           </ul>
@@ -104,19 +109,31 @@ export default function LoginPage() {
           <form onSubmit={submit} className="space-y-5">
             <div>
               <label className="label">Email</label>
-              <input
-                name="email" type="email" value={form.email} onChange={handle}
-                required className="input" placeholder="tu@empresa.com"
-                autoComplete="email"
-              />
+              <div className="relative">
+                <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
+                  <MailIcon className="w-4 h-4 text-gray-400" />
+                </div>
+                <input
+                  name="email" type="email" value={form.email} onChange={handle}
+                  required className="input pl-10" placeholder="tu@empresa.com"
+                  autoComplete="email"
+                />
+              </div>
             </div>
             <div>
               <label className="label">Contraseña</label>
-              <input
-                name="password" type="password" value={form.password} onChange={handle}
-                required className="input" placeholder="••••••••"
-                autoComplete="current-password"
-              />
+              <div className="relative">
+                <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <input
+                  name="password" type="password" value={form.password} onChange={handle}
+                  required className="input pl-10" placeholder="••••••••"
+                  autoComplete="current-password"
+                />
+              </div>
             </div>
 
             <button type="submit" disabled={loading} className="btn-primary w-full btn-lg">

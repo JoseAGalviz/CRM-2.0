@@ -7,6 +7,7 @@ import toast from 'react-hot-toast'
 import Spinner from '../components/ui/Spinner'
 import Avatar from '../components/ui/Avatar'
 import Modal from '../components/ui/Modal'
+import { MailIcon, PhoneIcon, LinkIcon, ActivityTypeIcon } from '../components/ui/icons'
 
 export default function ContactDetailPage() {
   const { id } = useParams()
@@ -92,9 +93,21 @@ export default function ContactDetailPage() {
             <h1 className="text-2xl font-bold text-gray-900">{contact.first_name} {contact.last_name}</h1>
             <p className="text-gray-500">{contact.job_title || '—'} {contact.company_name ? `· ${contact.company_name}` : ''}</p>
             <div className="flex flex-wrap gap-3 mt-3">
-              {contact.email && <a href={`mailto:${contact.email}`} className="text-sm text-primary-600 hover:underline">📧 {contact.email}</a>}
-              {contact.phone && <a href={`tel:${contact.phone}`} className="text-sm text-primary-600 hover:underline">📞 {contact.phone}</a>}
-              {contact.linkedin_url && <a href={contact.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary-600 hover:underline">🔗 LinkedIn</a>}
+              {contact.email && (
+                <a href={`mailto:${contact.email}`} className="inline-flex items-center gap-1.5 text-sm text-primary-600 hover:underline">
+                  <MailIcon className="w-3.5 h-3.5" />{contact.email}
+                </a>
+              )}
+              {contact.phone && (
+                <a href={`tel:${contact.phone}`} className="inline-flex items-center gap-1.5 text-sm text-primary-600 hover:underline">
+                  <PhoneIcon className="w-3.5 h-3.5" />{contact.phone}
+                </a>
+              )}
+              {contact.linkedin_url && (
+                <a href={contact.linkedin_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-primary-600 hover:underline">
+                  <LinkIcon className="w-3.5 h-3.5" />LinkedIn
+                </a>
+              )}
             </div>
           </div>
           <span className={`badge ${contact.status === 'active' ? 'badge-green' : 'badge-gray'}`}>{contact.status === 'active' ? 'Activo' : 'Inactivo'}</span>
@@ -163,7 +176,9 @@ export default function ContactDetailPage() {
           {activities.length === 0 ? <p className="text-center text-gray-400 py-10">Sin actividades</p> :
             activities.map(a => (
               <div key={a.id} className="card p-4 flex gap-3">
-                <span className="text-xl">{ACTIVITY_TYPES.find(t => t.value === a.type)?.icon || '📋'}</span>
+                <span className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 text-gray-500">
+                  <ActivityTypeIcon type={a.type} className="w-4 h-4" />
+                </span>
                 <div>
                   <p className="font-medium text-gray-900">{a.subject}</p>
                   {a.description && <p className="text-sm text-gray-500 mt-1">{a.description}</p>}

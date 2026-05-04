@@ -6,6 +6,7 @@ import { DEAL_STAGES, COMPANY_SIZES } from '../utils/constants'
 import toast from 'react-hot-toast'
 import Spinner from '../components/ui/Spinner'
 import Avatar from '../components/ui/Avatar'
+import { BuildingIcon, MailIcon, PhoneIcon, GlobeIcon } from '../components/ui/icons'
 
 export default function CompanyDetailPage() {
   const { id } = useParams()
@@ -42,14 +43,28 @@ export default function CompanyDetailPage() {
 
       <div className="card p-6">
         <div className="flex flex-col sm:flex-row gap-4 items-start">
-          <div className="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center text-3xl flex-shrink-0">🏢</div>
+          <div className="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0 text-purple-500">
+            <BuildingIcon className="w-7 h-7" />
+          </div>
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-gray-900">{company.name}</h1>
             <p className="text-gray-500">{company.industry} · {COMPANY_SIZES.find(s => s.value === company.size)?.label || company.size || '—'}</p>
             <div className="flex flex-wrap gap-4 mt-3 text-sm">
-              {company.email && <a href={`mailto:${company.email}`} className="text-primary-600 hover:underline">📧 {company.email}</a>}
-              {company.phone && <span className="text-gray-600">📞 {company.phone}</span>}
-              {company.website && <a href={company.website} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">🌐 Sitio web</a>}
+              {company.email && (
+                <a href={`mailto:${company.email}`} className="inline-flex items-center gap-1.5 text-primary-600 hover:underline">
+                  <MailIcon className="w-3.5 h-3.5" />{company.email}
+                </a>
+              )}
+              {company.phone && (
+                <span className="inline-flex items-center gap-1.5 text-gray-600">
+                  <PhoneIcon className="w-3.5 h-3.5" />{company.phone}
+                </span>
+              )}
+              {company.website && (
+                <a href={company.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-primary-600 hover:underline">
+                  <GlobeIcon className="w-3.5 h-3.5" />Sitio web
+                </a>
+              )}
             </div>
           </div>
           <div className="flex gap-4">

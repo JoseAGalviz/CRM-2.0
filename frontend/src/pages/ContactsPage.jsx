@@ -5,6 +5,7 @@ import { formatDate } from '../utils/formatters'
 import { exportToCSV, CONTACT_COLUMNS } from '../utils/export'
 import { CONTACT_SOURCES } from '../utils/constants'
 import toast from 'react-hot-toast'
+import { UsersIcon } from '../components/ui/icons'
 import Modal from '../components/ui/Modal'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import Pagination from '../components/ui/Pagination'
@@ -105,7 +106,7 @@ export default function ContactsPage() {
         {loading ? (
           <div className="flex justify-center py-16"><Spinner /></div>
         ) : contacts.length === 0 ? (
-          <EmptyState icon="👥" title="Sin contactos" description="Agrega tu primer contacto para empezar"
+          <EmptyState icon={<UsersIcon className="w-7 h-7" />} title="Sin contactos" description="Agrega tu primer contacto para empezar"
             action={<button onClick={openCreate} className="btn-primary">Agregar contacto</button>} />
         ) : (
           <>

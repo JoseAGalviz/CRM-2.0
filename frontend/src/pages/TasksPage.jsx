@@ -3,6 +3,7 @@ import { tasksAPI, contactsAPI, dealsAPI } from '../api/index'
 import { formatDate, isOverdue } from '../utils/formatters'
 import { TASK_STATUSES, TASK_PRIORITIES } from '../utils/constants'
 import toast from 'react-hot-toast'
+import { CheckCircleIcon } from '../components/ui/icons'
 import Modal from '../components/ui/Modal'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import Pagination from '../components/ui/Pagination'
@@ -101,7 +102,7 @@ export default function TasksPage() {
         {loading ? (
           <div className="flex justify-center py-16"><Spinner /></div>
         ) : tasks.length === 0 ? (
-          <EmptyState icon="✅" title="Sin tareas" description="Crea tu primera tarea"
+          <EmptyState icon={<CheckCircleIcon className="w-7 h-7" />} title="Sin tareas" description="Crea tu primera tarea"
             action={<button onClick={openCreate} className="btn-primary">Crear tarea</button>} />
         ) : (
           <>

@@ -5,6 +5,7 @@ import { exportToCSV, DEAL_COLUMNS } from '../utils/export'
 import { getDealHealth } from '../utils/dealHealth'
 import { DEAL_STAGES } from '../utils/constants'
 import toast from 'react-hot-toast'
+import { UserIcon, BuildingIcon, CalendarIcon } from '../components/ui/icons'
 import { DndContext, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -33,9 +34,21 @@ function DealCard({ deal, onClick, onDelete }) {
         </div>
       </div>
       <p className="text-base font-bold text-primary-600 mt-1.5">{formatCurrency(deal.value, deal.currency)}</p>
-      {deal.contact_name && <p className="text-xs text-gray-500 mt-1">👤 {deal.contact_name}</p>}
-      {deal.company_name && <p className="text-xs text-gray-500">🏢 {deal.company_name}</p>}
-      {deal.expected_close && <p className="text-xs text-gray-400 mt-1">📅 {formatDate(deal.expected_close)}</p>}
+      {deal.contact_name && (
+        <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+          <UserIcon className="w-3 h-3 flex-shrink-0" />{deal.contact_name}
+        </p>
+      )}
+      {deal.company_name && (
+        <p className="text-xs text-gray-500 flex items-center gap-1">
+          <BuildingIcon className="w-3 h-3 flex-shrink-0" />{deal.company_name}
+        </p>
+      )}
+      {deal.expected_close && (
+        <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+          <CalendarIcon className="w-3 h-3 flex-shrink-0" />{formatDate(deal.expected_close)}
+        </p>
+      )}
       <div className="mt-2 flex items-center gap-1">
         <div className="flex-1 bg-gray-100 rounded-full h-1.5">
           <div className="bg-primary-500 h-1.5 rounded-full" style={{ width: `${deal.probability}%` }} />

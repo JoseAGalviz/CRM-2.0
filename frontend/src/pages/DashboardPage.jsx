@@ -6,6 +6,11 @@ import { DEAL_STAGES, ACTIVITY_TYPES } from '../utils/constants'
 import toast from 'react-hot-toast'
 import Spinner from '../components/ui/Spinner'
 import {
+  UsersIcon, BuildingIcon, BriefcaseIcon, CurrencyDollarIcon,
+  CalendarIcon, ChartBarIcon, CheckCircleIcon, ExclamationIcon,
+  ActivityTypeIcon,
+} from '../components/ui/icons'
+import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from 'recharts'
@@ -13,7 +18,7 @@ import {
 function MetricCard({ title, value, subtitle, icon, color, to }) {
   const card = (
     <div className={`card p-5 flex items-center gap-4 transition-all duration-200 ${to ? 'cursor-pointer hover:shadow-card-hover hover:-translate-y-px' : ''}`}>
-      <div className={`w-11 h-11 ${color} rounded-2xl flex items-center justify-center flex-shrink-0 text-xl`}>
+      <div className={`w-11 h-11 ${color} rounded-2xl flex items-center justify-center flex-shrink-0`}>
         {icon}
       </div>
       <div className="flex-1 min-w-0">
@@ -61,23 +66,21 @@ export default function DashboardPage() {
     'Cerrados': m.won_count,
   }))
 
-  const activityIcon = (type) => ACTIVITY_TYPES.find(a => a.value === type)?.icon || '📋'
-
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard title="Contactos"       value={metrics.contacts}   icon="👥" color="bg-violet-50" to="/contacts" />
-        <MetricCard title="Empresas"        value={metrics.companies}  icon="🏢" color="bg-blue-50"   to="/companies" />
-        <MetricCard title="Negocios activos" value={metrics.activeDeals} subtitle={`${metrics.wonDeals} ganados`} icon="💼" color="bg-emerald-50" to="/deals" />
-        <MetricCard title="Ingresos"        value={formatCurrency(metrics.revenue)} subtitle={`Pipeline: ${formatCurrency(metrics.pipeline)}`} icon="💰" color="bg-amber-50" />
+        <MetricCard title="Contactos"        value={metrics.contacts}   icon={<UsersIcon className="w-5 h-5" />}           color="bg-violet-50 text-violet-600" to="/contacts" />
+        <MetricCard title="Empresas"         value={metrics.companies}  icon={<BuildingIcon className="w-5 h-5" />}         color="bg-blue-50 text-blue-600"     to="/companies" />
+        <MetricCard title="Negocios activos" value={metrics.activeDeals} subtitle={`${metrics.wonDeals} ganados`} icon={<BriefcaseIcon className="w-5 h-5" />} color="bg-emerald-50 text-emerald-600" to="/deals" />
+        <MetricCard title="Ingresos"         value={formatCurrency(metrics.revenue)} subtitle={`Pipeline: ${formatCurrency(metrics.pipeline)}`} icon={<CurrencyDollarIcon className="w-5 h-5" />} color="bg-amber-50 text-amber-600" />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard title="Tareas pendientes"  value={metrics.pendingTasks}       icon="✅" color="bg-orange-50" to="/tasks" />
-        <MetricCard title="Tareas vencidas"    value={metrics.overdueTasks}        icon="⚠️" color="bg-red-50"    to="/tasks?status=pending" />
-        <MetricCard title="Actividades (mes)"  value={metrics.activitiesThisMonth} icon="📅" color="bg-teal-50"  to="/activities" />
-        <MetricCard title="Won rate"           value={metrics.activeDeals + metrics.wonDeals > 0 ? `${Math.round(metrics.wonDeals / (metrics.activeDeals + metrics.wonDeals) * 100)}%` : '—'} icon="🎯" color="bg-purple-50" />
+        <MetricCard title="Tareas pendientes"  value={metrics.pendingTasks}        icon={<CheckCircleIcon className="w-5 h-5" />}  color="bg-orange-50 text-orange-600" to="/tasks" />
+        <MetricCard title="Tareas vencidas"    value={metrics.overdueTasks}         icon={<ExclamationIcon className="w-5 h-5" />}  color="bg-red-50 text-red-600"       to="/tasks?status=pending" />
+        <MetricCard title="Actividades (mes)"  value={metrics.activitiesThisMonth}  icon={<CalendarIcon className="w-5 h-5" />}     color="bg-teal-50 text-teal-600"     to="/activities" />
+        <MetricCard title="Won rate"           value={metrics.activeDeals + metrics.wonDeals > 0 ? `${Math.round(metrics.wonDeals / (metrics.activeDeals + metrics.wonDeals) * 100)}%` : '—'} icon={<ChartBarIcon className="w-5 h-5" />} color="bg-purple-50 text-purple-600" />
       </div>
 
       {/* Charts */}
@@ -132,7 +135,7 @@ export default function DashboardPage() {
               <p className="text-center text-gray-400 py-8 text-sm">Sin actividades recientes</p>
             ) : activities.slice(0, 5).map(a => (
               <div key={a.id} className="flex items-start gap-3 px-5 py-3">
-                <span className="text-xl mt-0.5 flex-shrink-0">{activityIcon(a.type)}</span>
+                <span className="w-5 h-5 mt-0.5 flex-shrink-0 text-gray-400"><ActivityTypeIcon type={a.type} className="w-5 h-5" /></span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{a.subject}</p>
                   <p className="text-xs text-gray-500">{a.contact_name || a.deal_title || '—'} · {formatDateRelative(a.occurred_at)}</p>

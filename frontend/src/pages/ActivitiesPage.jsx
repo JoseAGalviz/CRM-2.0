@@ -3,6 +3,7 @@ import { activitiesAPI, contactsAPI, dealsAPI } from '../api/index'
 import { formatDateTime } from '../utils/formatters'
 import { ACTIVITY_TYPES } from '../utils/constants'
 import toast from 'react-hot-toast'
+import { CalendarIcon, ActivityTypeIcon } from '../components/ui/icons'
 import Modal from '../components/ui/Modal'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import Pagination from '../components/ui/Pagination'
@@ -89,7 +90,7 @@ export default function ActivitiesPage() {
         {loading ? (
           <div className="flex justify-center py-16"><Spinner /></div>
         ) : activities.length === 0 ? (
-          <EmptyState icon="📅" title="Sin actividades" description="Registra tu primera actividad"
+          <EmptyState icon={<CalendarIcon className="w-7 h-7" />} title="Sin actividades" description="Registra tu primera actividad"
             action={<button onClick={openCreate} className="btn-primary">Registrar actividad</button>} />
         ) : (
           <>

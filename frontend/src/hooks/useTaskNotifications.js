@@ -33,7 +33,7 @@ async function checkAndNotify() {
     })
 
     if (overdue.length > 0) {
-      new Notification('⚠️ Tareas vencidas', {
+      new Notification('Tareas vencidas', {
         body: overdue.length === 1
           ? `"${overdue[0].title}" está vencida`
           : `${overdue.length} tareas están vencidas`,
@@ -44,7 +44,7 @@ async function checkAndNotify() {
     }
 
     if (dueToday.length > 0) {
-      new Notification('📅 Tareas para hoy', {
+      new Notification('Tareas para hoy', {
         body: dueToday.length === 1
           ? `"${dueToday[0].title}" vence hoy`
           : `${dueToday.length} tareas vencen hoy`,

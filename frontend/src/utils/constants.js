@@ -22,12 +22,12 @@ export const TASK_PRIORITIES = [
 ]
 
 export const ACTIVITY_TYPES = [
-  { value: 'call', label: 'Llamada', icon: '📞' },
-  { value: 'email', label: 'Email', icon: '📧' },
-  { value: 'meeting', label: 'Reunión', icon: '🤝' },
-  { value: 'demo', label: 'Demo', icon: '💻' },
-  { value: 'follow_up', label: 'Seguimiento', icon: '🔔' },
-  { value: 'other', label: 'Otro', icon: '📋' },
+  { value: 'call',      label: 'Llamada'     },
+  { value: 'email',     label: 'Email'       },
+  { value: 'meeting',   label: 'Reunión'     },
+  { value: 'demo',      label: 'Demo'        },
+  { value: 'follow_up', label: 'Seguimiento' },
+  { value: 'other',     label: 'Otro'        },
 ]
 
 export const CONTACT_SOURCES = [
