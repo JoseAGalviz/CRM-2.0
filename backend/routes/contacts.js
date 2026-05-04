@@ -74,16 +74,18 @@ router.post('/', authenticate, contactValidators, async (req, res) => {
 
 // GET /api/contacts/:id
 router.get('/:id', authenticate, async (req, res) => {
-  const contact = await db.get(`
-    SELECT c.*, co.name as company_name, u.name as owner_name
-    FROM contacts c
-    LEFT JOIN companies co ON c.company_id = co.id
-    LEFT JOIN users u ON c.owner_id = u.id
-    WHERE c.id = ? AND c.is_deleted = 0
-  `, req.params.id);
-  if (!contact) return notFound(res, 'Contact not found');
-  parseTags(contact);
-  return success(res, contact);
+  try {
+    const contact = await db.get(`
+      SELECT c.*, co.name as company_name, u.name as owner_name
+      FROM contacts c
+      LEFT JOIN companies co ON c.company_id = co.id
+      LEFT JOIN users u ON c.owner_id = u.id
+      WHERE c.id = ? AND c.is_deleted = 0
+    `, req.params.id);
+    if (!contact) return notFound(res, 'Contact not found');
+    parseTags(contact);
+    return success(res, contact);
+  } catch (err) { console.error(err); return error(res, 'Error fetching contact'); }
 });
 
 // PUT /api/contacts/:id
@@ -105,30 +107,40 @@ router.put('/:id', authenticate, contactValidators, async (req, res) => {
 
 // DELETE /api/contacts/:id
 router.delete('/:id', authenticate, async (req, res) => {
-  const existing = await db.get('SELECT id FROM contacts WHERE id = ? AND is_deleted = 0', req.params.id);
-  if (!existing) return notFound(res, 'Contact not found');
-  await db.run('UPDATE contacts SET is_deleted = 1 WHERE id = ?', req.params.id);
-  return success(res, null, 'Contact deleted');
+  try {
+    const existing = await db.get('SELECT id FROM contacts WHERE id = ? AND is_deleted = 0', req.params.id);
+    if (!existing) return notFound(res, 'Contact not found');
+    await db.run('UPDATE contacts SET is_deleted = 1 WHERE id = ?', req.params.id);
+    return success(res, null, 'Contact deleted');
+  } catch (err) { console.error(err); return error(res, 'Error deleting contact'); }
 });
 
 router.get('/:id/deals', authenticate, async (req, res) => {
-  const deals = await db.all('SELECT * FROM deals WHERE contact_id = ? AND is_deleted = 0 ORDER BY created_at DESC', req.params.id);
-  return success(res, deals);
+  try {
+    const deals = await db.all('SELECT * FROM deals WHERE contact_id = ? AND is_deleted = 0 ORDER BY created_at DESC', req.params.id);
+    return success(res, deals);
+  } catch (err) { return error(res, 'Error fetching deals'); }
 });
 
 router.get('/:id/activities', authenticate, async (req, res) => {
-  const activities = await db.all('SELECT a.*, u.name as owner_name FROM activities a LEFT JOIN users u ON a.owner_id = u.id WHERE a.contact_id = ? AND a.is_deleted = 0 ORDER BY a.occurred_at DESC', req.params.id);
-  return success(res, activities);
+  try {
+    const activities = await db.all('SELECT a.*, u.name as owner_name FROM activities a LEFT JOIN users u ON a.owner_id = u.id WHERE a.contact_id = ? AND a.is_deleted = 0 ORDER BY a.occurred_at DESC', req.params.id);
+    return success(res, activities);
+  } catch (err) { return error(res, 'Error fetching activities'); }
 });
 
 router.get('/:id/tasks', authenticate, async (req, res) => {
-  const tasks = await db.all('SELECT * FROM tasks WHERE contact_id = ? AND is_deleted = 0 ORDER BY due_date ASC', req.params.id);
-  return success(res, tasks);
+  try {
+    const tasks = await db.all('SELECT * FROM tasks WHERE contact_id = ? AND is_deleted = 0 ORDER BY due_date ASC', req.params.id);
+    return success(res, tasks);
+  } catch (err) { return error(res, 'Error fetching tasks'); }
 });
 
 router.get('/:id/notes', authenticate, async (req, res) => {
-  const notes = await db.all('SELECT n.*, u.name as owner_name FROM notes n LEFT JOIN users u ON n.owner_id = u.id WHERE n.contact_id = ? AND n.is_deleted = 0 ORDER BY n.created_at DESC', req.params.id);
-  return success(res, notes);
+  try {
+    const notes = await db.all('SELECT n.*, u.name as owner_name FROM notes n LEFT JOIN users u ON n.owner_id = u.id WHERE n.contact_id = ? AND n.is_deleted = 0 ORDER BY n.created_at DESC', req.params.id);
+    return success(res, notes);
+  } catch (err) { return error(res, 'Error fetching notes'); }
 });
 
 module.exports = router;

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { dashboardAPI } from '../api/index'
 import { formatCurrency, formatDateRelative } from '../utils/formatters'
 import { DEAL_STAGES, ACTIVITY_TYPES } from '../utils/constants'
+import toast from 'react-hot-toast'
 import Spinner from '../components/ui/Spinner'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -11,13 +12,13 @@ import {
 
 function MetricCard({ title, value, subtitle, icon, color, to }) {
   const card = (
-    <div className={`card p-5 flex items-center gap-4 hover:shadow-md transition-shadow ${to ? 'cursor-pointer' : ''}`}>
-      <div className={`w-12 h-12 ${color} rounded-xl flex items-center justify-center flex-shrink-0`}>
-        <span className="text-2xl">{icon}</span>
+    <div className={`card p-5 flex items-center gap-4 transition-all duration-200 ${to ? 'cursor-pointer hover:shadow-card-hover hover:-translate-y-px' : ''}`}>
+      <div className={`w-11 h-11 ${color} rounded-2xl flex items-center justify-center flex-shrink-0 text-xl`}>
+        {icon}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-gray-500">{title}</p>
-        <p className="text-2xl font-bold text-gray-900">{value}</p>
+        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{title}</p>
+        <p className="text-2xl font-bold text-gray-900 leading-tight mt-0.5">{value}</p>
         {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
       </div>
     </div>
@@ -40,7 +41,7 @@ export default function DashboardPage() {
       dashboardAPI.overdueTasks(),
     ]).then(([m, s, mo, a, t]) => {
       setData({ metrics: m.data.data, byStage: s.data.data, byMonth: mo.data.data, activities: a.data.data, tasks: t.data.data })
-    }).catch(console.error).finally(() => setLoading(false))
+    }).catch(() => toast.error('Error cargando dashboard')).finally(() => setLoading(false))
   }, [])
 
   if (loading) return <div className="flex justify-center py-20"><Spinner size="lg" /></div>
@@ -66,17 +67,17 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard title="Contactos" value={metrics.contacts} icon="👥" color="bg-blue-50" to="/contacts" />
-        <MetricCard title="Empresas" value={metrics.companies} icon="🏢" color="bg-purple-50" to="/companies" />
-        <MetricCard title="Negocios activos" value={metrics.activeDeals} subtitle={`${metrics.wonDeals} ganados`} icon="💼" color="bg-green-50" to="/deals" />
-        <MetricCard title="Ingresos" value={formatCurrency(metrics.revenue)} subtitle={`Pipeline: ${formatCurrency(metrics.pipeline)}`} icon="💰" color="bg-yellow-50" />
+        <MetricCard title="Contactos"       value={metrics.contacts}   icon="👥" color="bg-violet-50" to="/contacts" />
+        <MetricCard title="Empresas"        value={metrics.companies}  icon="🏢" color="bg-blue-50"   to="/companies" />
+        <MetricCard title="Negocios activos" value={metrics.activeDeals} subtitle={`${metrics.wonDeals} ganados`} icon="💼" color="bg-emerald-50" to="/deals" />
+        <MetricCard title="Ingresos"        value={formatCurrency(metrics.revenue)} subtitle={`Pipeline: ${formatCurrency(metrics.pipeline)}`} icon="💰" color="bg-amber-50" />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard title="Tareas pendientes" value={metrics.pendingTasks} icon="✅" color="bg-orange-50" to="/tasks" />
-        <MetricCard title="Tareas vencidas" value={metrics.overdueTasks} icon="⚠️" color="bg-red-50" to="/tasks?status=pending" />
-        <MetricCard title="Actividades (mes)" value={metrics.activitiesThisMonth} icon="📅" color="bg-teal-50" to="/activities" />
-        <MetricCard title="Won rate" value={metrics.activeDeals + metrics.wonDeals > 0 ? `${Math.round(metrics.wonDeals / (metrics.activeDeals + metrics.wonDeals) * 100)}%` : '—'} icon="🎯" color="bg-indigo-50" />
+        <MetricCard title="Tareas pendientes"  value={metrics.pendingTasks}       icon="✅" color="bg-orange-50" to="/tasks" />
+        <MetricCard title="Tareas vencidas"    value={metrics.overdueTasks}        icon="⚠️" color="bg-red-50"    to="/tasks?status=pending" />
+        <MetricCard title="Actividades (mes)"  value={metrics.activitiesThisMonth} icon="📅" color="bg-teal-50"  to="/activities" />
+        <MetricCard title="Won rate"           value={metrics.activeDeals + metrics.wonDeals > 0 ? `${Math.round(metrics.wonDeals / (metrics.activeDeals + metrics.wonDeals) * 100)}%` : '—'} icon="🎯" color="bg-purple-50" />
       </div>
 
       {/* Charts */}
@@ -91,8 +92,8 @@ export default function DashboardPage() {
                 <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Bar dataKey="Deals" fill="#bfdbfe" radius={[4,4,0,0]} />
-                <Bar dataKey="Cerrados" fill="#2563eb" radius={[4,4,0,0]} />
+                <Bar dataKey="Deals" fill="#ddd6fe" radius={[4,4,0,0]} />
+                <Bar dataKey="Cerrados" fill="#7c3aed" radius={[4,4,0,0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (

@@ -90,3 +90,8 @@ export const notesAPI = {
   update: (id, data) => client.put(`/notes/${id}`, data),
   delete: (id) => client.delete(`/notes/${id}`),
 }
+
+// Search
+export const searchAPI = {
+  global: (q, limit = 5) => client.get('/search', { params: { q, limit } }),
+}

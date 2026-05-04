@@ -170,15 +170,19 @@ router.get('/conversations/:id/messages', async (req, res, next) => {
     const rows = await db.all(
       `SELECT
          m.id, m.conversation_id, m.sender_id, m.content, m.type, m.created_at, m.deleted_at,
+         m.reply_to_id,
          u.name AS sender_name, u.avatar_url AS sender_avatar,
-         -- read receipts: list of user_ids who read this message (JSON array)
-         (SELECT json_group_array(json_object('user_id', r.user_id, 'read_at', r.read_at, 'name', ru.name))
+         rm.content  AS reply_content,
+         ru.name     AS reply_sender_name,
+         (SELECT json_group_array(json_object('user_id', r.user_id, 'read_at', r.read_at, 'name', ru2.name))
           FROM chat_message_reads r
-          JOIN users ru ON ru.id = r.user_id
+          JOIN users ru2 ON ru2.id = r.user_id
           WHERE r.message_id = m.id
          ) AS reads_json
        FROM chat_messages m
        JOIN users u ON u.id = m.sender_id
+       LEFT JOIN chat_messages rm ON rm.id = m.reply_to_id
+       LEFT JOIN users ru ON ru.id = rm.sender_id
        WHERE m.conversation_id = ?
          ${before ? 'AND m.id < ?' : ''}
        ORDER BY m.id DESC

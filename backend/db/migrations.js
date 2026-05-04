@@ -249,6 +249,11 @@ async function runMigrations() {
     END
   `);
 
+  // Add reply_to_id to chat_messages if not exists (safe to run multiple times)
+  try {
+    await db.exec(`ALTER TABLE chat_messages ADD COLUMN reply_to_id INTEGER REFERENCES chat_messages(id)`);
+  } catch {}
+
   console.log('✅ Database migrations complete');
 }
 

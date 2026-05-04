@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { dealsAPI, contactsAPI, companiesAPI } from '../api/index'
 import { formatCurrency, formatDate } from '../utils/formatters'
+import { exportToCSV, DEAL_COLUMNS } from '../utils/export'
+import { getDealHealth } from '../utils/dealHealth'
 import { DEAL_STAGES } from '../utils/constants'
 import toast from 'react-hot-toast'
 import { DndContext, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
@@ -40,6 +42,15 @@ function DealCard({ deal, onClick, onDelete }) {
         </div>
         <span className="text-xs text-gray-400">{deal.probability}%</span>
       </div>
+      {(() => {
+        const h = getDealHealth(deal)
+        return (
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${h.bg}`} title={`Health: ${h.score}`} />
+            <span className={`text-xs font-medium ${h.color}`}>{h.label} · {h.score}</span>
+          </div>
+        )
+      })()}
     </div>
   )
 }
@@ -58,23 +69,34 @@ export default function DealsPage() {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     try {
       const res = await dealsAPI.list({ limit: 200 })
       setDeals(res.data.data.deals)
     } catch { toast.error('Error cargando negocios') }
     finally { setLoading(false) }
-  }
+  }, [])
 
   useEffect(() => {
     load()
     contactsAPI.list({ limit: 200 }).then(r => setContacts(r.data.data.contacts))
     companiesAPI.list({ limit: 200 }).then(r => setCompanies(r.data.data.companies))
-  }, [])
+  }, [load])
 
-  const dealsForStage = (stage) => deals.filter(d => d.stage === stage)
-  const stageTotal = (stage) => dealsForStage(stage).reduce((s, d) => s + d.value, 0)
+  const dealsByStage = useMemo(() => {
+    return deals.reduce((acc, d) => {
+      if (!acc[d.stage]) acc[d.stage] = []
+      acc[d.stage].push(d)
+      return acc
+    }, {})
+  }, [deals])
+
+  const stageTotals = useMemo(() => {
+    return Object.fromEntries(
+      Object.entries(dealsByStage).map(([stage, stageDeals]) => [stage, stageDeals.reduce((s, d) => s + d.value, 0)])
+    )
+  }, [dealsByStage])
 
   const handleDragEnd = async ({ active, over }) => {
     setActiveId(null)
@@ -125,17 +147,22 @@ export default function DealsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">{deals.length} negocio{deals.length !== 1 ? 's' : ''} · Pipeline: {formatCurrency(deals.filter(d => !['won','lost'].includes(d.stage)).reduce((s,d) => s+d.value, 0))}</p>
-        <button onClick={openCreate} className="btn-primary">
+        <div className="flex gap-2">
+          <button onClick={() => exportToCSV(deals, 'negocios', DEAL_COLUMNS)} className="btn-secondary text-sm">
+            ↓ CSV
+          </button>
+          <button onClick={openCreate} className="btn-primary">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
           Nuevo negocio
         </button>
+        </div>
       </div>
 
       {/* Kanban */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={({ active }) => setActiveId(active.id)} onDragEnd={handleDragEnd}>
         <div className="flex gap-4 overflow-x-auto pb-4">
           {DEAL_STAGES.map(stage => {
-            const stageDeals = dealsForStage(stage.value)
+            const stageDeals = dealsByStage[stage.value] || []
             return (
               <div key={stage.value} id={stage.value} className="flex-shrink-0 w-64 md:w-72">
                 {/* Column header */}
@@ -145,7 +172,7 @@ export default function DealsPage() {
                     <span className="text-sm font-semibold text-gray-700">{stage.label}</span>
                     <span className="badge badge-gray text-xs">{stageDeals.length}</span>
                   </div>
-                  <span className="text-xs text-gray-500 font-medium">{formatCurrency(stageTotal(stage.value))}</span>
+                  <span className="text-xs text-gray-500 font-medium">{formatCurrency(stageTotals[stage.value] || 0)}</span>
                 </div>
 
                 {/* Droppable area */}

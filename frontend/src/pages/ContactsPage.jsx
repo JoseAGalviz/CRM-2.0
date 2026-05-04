@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { contactsAPI, companiesAPI } from '../api/index'
 import { formatDate } from '../utils/formatters'
+import { exportToCSV, CONTACT_COLUMNS } from '../utils/export'
 import { CONTACT_SOURCES } from '../utils/constants'
 import toast from 'react-hot-toast'
 import Modal from '../components/ui/Modal'
@@ -14,6 +15,7 @@ import Avatar from '../components/ui/Avatar'
 const initForm = { first_name: '', last_name: '', email: '', phone: '', mobile: '', job_title: '', department: '', company_id: '', source: '', status: 'active', address: '', city: '', country: '', linkedin_url: '', notes: '', tags: [] }
 
 export default function ContactsPage() {
+  const navigate = useNavigate()
   const [contacts, setContacts] = useState([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -89,6 +91,9 @@ export default function ContactsPage() {
             <input className="input pl-9" placeholder="Buscar contactos..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
         </div>
+        <button onClick={() => exportToCSV(contacts, 'contactos', CONTACT_COLUMNS)} className="btn-secondary flex-shrink-0 text-sm">
+          ↓ CSV
+        </button>
         <button onClick={openCreate} className="btn-primary flex-shrink-0">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
           Nuevo contacto
@@ -112,7 +117,7 @@ export default function ContactsPage() {
                 </tr></thead>
                 <tbody>
                   {contacts.map(c => (
-                    <tr key={c.id} className="cursor-pointer" onClick={() => window.location = `/contacts/${c.id}`}>
+                    <tr key={c.id} className="cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>
                       <td>
                         <div className="flex items-center gap-3">
                           <Avatar name={`${c.first_name} ${c.last_name}`} size="sm" />

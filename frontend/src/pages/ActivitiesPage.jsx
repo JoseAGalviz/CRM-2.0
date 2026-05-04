@@ -9,7 +9,8 @@ import Pagination from '../components/ui/Pagination'
 import EmptyState from '../components/ui/EmptyState'
 import Spinner from '../components/ui/Spinner'
 
-const initForm = { type: 'call', subject: '', description: '', outcome: '', duration_min: '', occurred_at: new Date().toISOString().slice(0, 16), contact_id: '', company_id: '', deal_id: '' }
+const initForm = { type: 'call', subject: '', description: '', outcome: '', duration_min: '', occurred_at: '', contact_id: '', company_id: '', deal_id: '' }
+const nowLocal = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)
 
 export default function ActivitiesPage() {
   const [activities, setActivities] = useState([])
@@ -46,7 +47,7 @@ export default function ActivitiesPage() {
     dealsAPI.list({ limit: 200 }).then(r => setDeals(r.data.data.deals))
   }, [])
 
-  const openCreate = () => { setForm({ ...initForm, occurred_at: new Date().toISOString().slice(0, 16) }); setEditing(null); setModal(true) }
+  const openCreate = () => { setForm({ ...initForm, occurred_at: nowLocal() }); setEditing(null); setModal(true) }
   const openEdit = (a) => {
     setForm({ ...initForm, ...a, occurred_at: a.occurred_at?.slice(0, 16) || '', duration_min: a.duration_min || '', contact_id: a.contact_id || '', deal_id: a.deal_id || '' })
     setEditing(a); setModal(true)

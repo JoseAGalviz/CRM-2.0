@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { companiesAPI } from '../api/index'
 import { formatCurrency, formatDate } from '../utils/formatters'
+import { exportToCSV, COMPANY_COLUMNS } from '../utils/export'
 import { COMPANY_SIZES, INDUSTRIES } from '../utils/constants'
 import toast from 'react-hot-toast'
 import Modal from '../components/ui/Modal'
@@ -72,6 +73,9 @@ export default function CompaniesPage() {
             <input className="input pl-9" placeholder="Buscar empresas..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
         </div>
+        <button onClick={() => exportToCSV(companies, 'empresas', COMPANY_COLUMNS)} className="btn-secondary flex-shrink-0 text-sm">
+          ↓ CSV
+        </button>
         <button onClick={openCreate} className="btn-primary flex-shrink-0">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
           Nueva empresa

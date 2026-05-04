@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import TopBar from './TopBar'
+import { useTaskNotifications } from '../../hooks/useTaskNotifications'
 
 export default function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  useTaskNotifications()
 
   return (
     <div className="flex h-screen overflow-hidden">

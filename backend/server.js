@@ -26,9 +26,10 @@ app.use(helmet({
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5173'];
+const localNetworkPattern = /^https?:\/\/(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?$/;
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) callback(null, true);
+    if (!origin || allowedOrigins.includes(origin) || localNetworkPattern.test(origin)) callback(null, true);
     else callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -53,6 +54,7 @@ app.use('/api/activities',  require('./routes/activities'));
 app.use('/api/notes',       require('./routes/notes'));
 app.use('/api/dashboard',   require('./routes/dashboard'));
 app.use('/api/chat',        require('./routes/chat'));
+app.use('/api/search',     require('./routes/search'));
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
@@ -116,7 +118,7 @@ io.on('connection', (socket) => {
   });
 
   // ── send message ─────────────────────────────────────────────────────────────
-  socket.on('send_message', async ({ conversationId, content }, ack) => {
+  socket.on('send_message', async ({ conversationId, content, reply_to_id }, ack) => {
     try {
       if (!content?.trim()) return;
 
@@ -126,9 +128,14 @@ io.on('connection', (socket) => {
       );
       if (!member) return;
 
+      // Validate reply_to_id belongs to same conversation
+      const validReplyId = reply_to_id
+        ? (await db.get(`SELECT id FROM chat_messages WHERE id = ? AND conversation_id = ?`, reply_to_id, conversationId))?.id ?? null
+        : null;
+
       const { lastInsertRowid: msgId } = await db.run(
-        `INSERT INTO chat_messages (conversation_id, sender_id, content) VALUES (?, ?, ?)`,
-        conversationId, userId, content.trim()
+        `INSERT INTO chat_messages (conversation_id, sender_id, content, reply_to_id) VALUES (?, ?, ?, ?)`,
+        conversationId, userId, content.trim(), validReplyId
       );
 
       // Auto-read by sender
@@ -143,8 +150,14 @@ io.on('connection', (socket) => {
       );
 
       const msg = await db.get(
-        `SELECT m.*, u.name AS sender_name, u.avatar_url AS sender_avatar
-         FROM chat_messages m JOIN users u ON u.id = m.sender_id
+        `SELECT m.*,
+                u.name AS sender_name, u.avatar_url AS sender_avatar,
+                rm.content AS reply_content,
+                ru.name    AS reply_sender_name
+         FROM chat_messages m
+         JOIN users u ON u.id = m.sender_id
+         LEFT JOIN chat_messages rm ON rm.id = m.reply_to_id
+         LEFT JOIN users ru ON ru.id = rm.sender_id
          WHERE m.id = ?`,
         msgId
       );
