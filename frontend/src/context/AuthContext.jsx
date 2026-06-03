@@ -1,55 +1,15 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { authAPI } from '../api/index'
+import { createContext, useContext, useCallback } from 'react'
+import { DEMO_USER } from '../demo/data'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const token = localStorage.getItem('accessToken')
-    if (token) {
-      authAPI.me()
-        .then(res => setUser(res.data.data))
-        .catch(() => {
-          localStorage.removeItem('accessToken')
-          localStorage.removeItem('refreshToken')
-        })
-        .finally(() => setLoading(false))
-    } else {
-      setLoading(false)
-    }
-  }, [])
-
-  const login = useCallback(async (email, password) => {
-    const res = await authAPI.login({ email, password })
-    const { user, accessToken, refreshToken } = res.data.data
-    localStorage.setItem('accessToken', accessToken)
-    localStorage.setItem('refreshToken', refreshToken)
-    setUser(user)
-    return user
-  }, [])
-
-  const register = useCallback(async (name, email, password) => {
-    const res = await authAPI.register({ name, email, password })
-    const { user, accessToken, refreshToken } = res.data.data
-    localStorage.setItem('accessToken', accessToken)
-    localStorage.setItem('refreshToken', refreshToken)
-    setUser(user)
-    return user
-  }, [])
-
-  const logout = useCallback(async () => {
-    const refreshToken = localStorage.getItem('refreshToken')
-    try { await authAPI.logout(refreshToken) } catch {}
-    localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
-    setUser(null)
-  }, [])
+  const login = useCallback(async () => {}, [])
+  const register = useCallback(async () => {}, [])
+  const logout = useCallback(async () => {}, [])
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ user: DEMO_USER, login, register, logout, loading: false }}>
       {children}
     </AuthContext.Provider>
   )

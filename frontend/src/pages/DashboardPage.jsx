@@ -1,10 +1,7 @@
-import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { dashboardAPI } from '../api/index'
+import { DEMO_METRICS, DEMO_BY_STAGE, DEMO_BY_MONTH, DEMO_ACTIVITIES, DEMO_OVERDUE_TASKS } from '../demo/data'
 import { formatCurrency, formatDateRelative } from '../utils/formatters'
 import { DEAL_STAGES, ACTIVITY_TYPES } from '../utils/constants'
-import toast from 'react-hot-toast'
-import Spinner from '../components/ui/Spinner'
 import {
   UsersIcon, BuildingIcon, BriefcaseIcon, CurrencyDollarIcon,
   CalendarIcon, ChartBarIcon, CheckCircleIcon, ExclamationIcon,
@@ -34,25 +31,11 @@ function MetricCard({ title, value, subtitle, icon, color, to }) {
 const STAGE_COLORS = { lead: '#94a3b8', qualified: '#3b82f6', proposal: '#f59e0b', negotiation: '#f97316', won: '#10b981', lost: '#ef4444' }
 
 export default function DashboardPage() {
-  const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    Promise.all([
-      dashboardAPI.metrics(),
-      dashboardAPI.dealsByStage(),
-      dashboardAPI.dealsByMonth(),
-      dashboardAPI.recentActivities(),
-      dashboardAPI.overdueTasks(),
-    ]).then(([m, s, mo, a, t]) => {
-      setData({ metrics: m.data.data, byStage: s.data.data, byMonth: mo.data.data, activities: a.data.data, tasks: t.data.data })
-    }).catch(() => toast.error('Error cargando dashboard')).finally(() => setLoading(false))
-  }, [])
-
-  if (loading) return <div className="flex justify-center py-20"><Spinner size="lg" /></div>
-  if (!data) return null
-
-  const { metrics, byStage, byMonth, activities, tasks } = data
+  const metrics   = DEMO_METRICS
+  const byStage   = DEMO_BY_STAGE
+  const byMonth   = DEMO_BY_MONTH
+  const activities = DEMO_ACTIVITIES
+  const tasks     = DEMO_OVERDUE_TASKS
 
   const pieData = byStage.map(s => ({
     name: DEAL_STAGES.find(d => d.value === s.stage)?.label || s.stage,
