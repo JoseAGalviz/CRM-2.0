@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <defs>
+    <linearGradient id="featherGrad" x1="30" y1="10" x2="70" y2="90" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="50%" stop-color="#00B4D8"/>
+      <stop offset="100%" stop-color="#1565C0"/>
+    </linearGradient>
+    <linearGradient id="shaftGrad" x1="45" y1="30" x2="55" y2="85" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0077B6"/>
+      <stop offset="100%" stop-color="#023E8A"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Feather body left side -->
+  <path d="M50 12 C35 18, 18 32, 20 55 C22 68, 32 78, 42 82 L50 85 L50 12Z"
+        fill="url(#featherGrad)" opacity="0.9"/>
+
+  <!-- Feather body right side (slightly darker) -->
+  <path d="M50 12 C65 18, 78 30, 76 52 C74 65, 64 76, 55 81 L50 85 L50 12Z"
+        fill="#00B4D8" opacity="0.75"/>
+
+  <!-- Feather shaft -->
+  <path d="M50 10 L48 82" stroke="url(#shaftGrad)" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Feather barbs left -->
+  <path d="M49 22 C40 26, 30 30, 24 38" stroke="#00E5FF" stroke-width="1.2" stroke-linecap="round" opacity="0.8"/>
+  <path d="M49 32 C40 36, 29 40, 23 48" stroke="#00E5FF" stroke-width="1.2" stroke-linecap="round" opacity="0.8"/>
+  <path d="M49 42 C41 46, 31 50, 25 57" stroke="#00CFFF" stroke-width="1.1" stroke-linecap="round" opacity="0.7"/>
+  <path d="M49 52 C42 56, 34 60, 29 66" stroke="#00BFEA" stroke-width="1" stroke-linecap="round" opacity="0.6"/>
+  <path d="M49 62 C44 65, 38 68, 34 72" stroke="#00AEDD" stroke-width="1" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- Feather barbs right -->
+  <path d="M51 22 C60 25, 68 30, 73 38" stroke="#0096C7" stroke-width="1.2" stroke-linecap="round" opacity="0.7"/>
+  <path d="M51 32 C60 35, 68 40, 72 47" stroke="#0096C7" stroke-width="1.2" stroke-linecap="round" opacity="0.7"/>
+  <path d="M51 42 C59 46, 66 50, 70 57" stroke="#0088BB" stroke-width="1.1" stroke-linecap="round" opacity="0.6"/>
+  <path d="M51 52 C57 55, 63 60, 66 66" stroke="#0077A8" stroke-width="1" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- Cursor arrow (integrated, upper right of feather) -->
+  <g filter="url(#glow)" transform="translate(54, 8) rotate(15)">
+    <polygon points="0,0 0,20 5,14 9,22 12,21 8,13 15,13"
+             fill="white" stroke="#00B4D8" stroke-width="0.8" stroke-linejoin="round"/>
+  </g>
+</svg>
