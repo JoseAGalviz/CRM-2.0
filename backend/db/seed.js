@@ -13,6 +13,9 @@ async function seed() {
 
   await db.run("INSERT OR IGNORE INTO users (name, email, password) VALUES (?, ?, ?)", 'Sales Rep', 'sales@crm.com', hash);
 
+  const demoHash = await bcrypt.hash('demo123', 12);
+  await db.run("INSERT OR IGNORE INTO users (name, email, password, role) VALUES (?, ?, ?, ?)", 'Demo User', 'demo@crm.com', demoHash, 'demo');
+
   const companies = [
     ['Acme Corporation', 'Technology', 'https://acme.com', '+1-555-0100', 'info@acme.com', 'enterprise', 5000000],
     ['Globex Industries', 'Manufacturing', 'https://globex.com', '+1-555-0200', 'contact@globex.com', 'smb', 1200000],
@@ -103,6 +106,7 @@ async function seed() {
   console.log('✅ Seed complete!');
   console.log('   Admin: admin@crm.com / password123');
   console.log('   Sales: sales@crm.com / password123');
+  console.log('   Demo:  demo@crm.com  / demo123 (read-only)');
 }
 
 module.exports = { seed };

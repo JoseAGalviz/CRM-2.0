@@ -52,6 +52,21 @@ app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use('/api/', apiLimiter);
 app.use('/api/auth', authLimiter);
 
+// ── Demo guard – block mutations for demo-role users ─────────────────────────
+app.use('/api', (req, res, next) => {
+  if (req.method === 'GET' || req.method === 'OPTIONS') return next();
+  if (req.path.startsWith('/auth')) return next();
+  const authHeader = req.headers['authorization'];
+  if (!authHeader?.startsWith('Bearer ')) return next();
+  try {
+    const payload = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET);
+    if (payload.role === 'demo') {
+      return res.status(403).json({ success: false, message: 'Acción no disponible en modo demo' });
+    }
+  } catch {}
+  next();
+});
+
 // ── REST Routes ───────────────────────────────────────────────────────────────
 app.use('/api/auth',        require('./routes/auth'));
 app.use('/api/users',       require('./routes/users'));
@@ -135,6 +150,10 @@ io.on('connection', (socket) => {
 
   // ── send message ─────────────────────────────────────────────────────────────
   socket.on('send_message', async ({ conversationId, content, reply_to_id }, ack) => {
+    if (socket.user.role === 'demo') {
+      if (typeof ack === 'function') ack({ success: false, error: 'Acción no disponible en modo demo' });
+      return;
+    }
     try {
       if (!content?.trim()) return;
 
