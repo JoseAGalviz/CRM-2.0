@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path    = require('path');
 const http    = require('http');
 const express = require('express');
 const helmet  = require('helmet');
@@ -59,6 +60,13 @@ app.use('/api/search',     require('./routes/search'));
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+
+// ── Frontend static + SPA catch-all ──────────────────────────────────────────
+const publicPath = path.join(__dirname, 'public');
+app.use(express.static(publicPath));
+app.get(/^(?!\/api).*/, (req, res) => {
+  res.sendFile(path.join(publicPath, 'index.html'));
+});
 
 // ── 404 / Error handlers ──────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ success: false, message: 'Route not found' }));
