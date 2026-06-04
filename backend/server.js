@@ -20,8 +20,11 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc:   ["'self'", "'unsafe-inline'"],
+      scriptSrc:  ["'self'"],
+      styleSrc:   ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc:    ["'self'", 'https://fonts.gstatic.com'],
       imgSrc:     ["'self'", 'data:', 'https:'],
+      connectSrc: ["'self'", 'wss:', 'ws:'],
     }
   }
 }));
@@ -79,7 +82,7 @@ app.use((err, req, res, next) => {
 // ── Socket.IO ─────────────────────────────────────────────────────────────────
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: process.env.NODE_ENV === 'production' ? true : allowedOrigins,
     methods: ['GET', 'POST'],
     credentials: true,
   },

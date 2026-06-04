@@ -8,7 +8,7 @@
     "dev:frontend": "cd frontend && npm run dev",
     "install:all": "cd backend && npm install && cd ../frontend && npm install",
     "seed": "cd backend && node db/seed.js",
-    "build": "cd backend && npm install && cd ../frontend && npm install --include=dev && npm run build && cp -r dist ../backend/public"
+    "build": "cd backend && npm install && cd ../frontend && npm install --include=dev && npm run build"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
