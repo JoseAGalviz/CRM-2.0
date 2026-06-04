@@ -11,7 +11,7 @@ const { success, created, error, unauthorized, notFound } = require('../utils/re
 
 function generateTokens(user) {
   const payload = { id: user.id, email: user.email, role: user.role, name: user.name };
-  const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
+  const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '15m' });
   const refreshToken = uuidv4();
   return { accessToken, refreshToken };
 }
