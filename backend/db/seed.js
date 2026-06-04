@@ -105,4 +105,8 @@ async function seed() {
   console.log('   Sales: sales@crm.com / password123');
 }
 
-seed().catch(err => { console.error(err); process.exit(1); });
+module.exports = { seed };
+
+if (require.main === module) {
+  seed().catch(err => { console.error(err); process.exit(1); });
+}

@@ -47,4 +47,89 @@ router.put('/me/password', authenticate, [
   }
 });
 
+router.post('/', authenticate, requireAdmin, [
+  body('name').trim().notEmpty().isLength({ max: 100 }),
+  body('email').isEmail().normalizeEmail(),
+  body('password').isLength({ min: 8 }),
+  body('role').optional().isIn(['admin', 'user']),
+  validate
+], async (req, res) => {
+  try {
+    const { name, email, password, role = 'user' } = req.body;
+    const existing = await db.get('SELECT id FROM users WHERE email = ?', email);
+    if (existing) return error(res, 'Email already in use', 409);
+    const hash = await bcrypt.hash(password, 12);
+    const result = await db.run(
+      'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
+      name, email, hash, role
+    );
+    const user = await db.get(
+      'SELECT id, name, email, role, avatar_url, is_active, created_at FROM users WHERE id = ?',
+      result.lastInsertRowid
+    );
+    return success(res, user, 'User created', 201);
+  } catch (err) {
+    return error(res, 'Error creating user');
+  }
+});
+
+router.put('/:id', authenticate, requireAdmin, [
+  body('name').optional().trim().notEmpty().isLength({ max: 100 }),
+  body('email').optional().isEmail().normalizeEmail(),
+  body('role').optional().isIn(['admin', 'user']),
+  body('password').optional().isLength({ min: 8 }),
+  validate
+], async (req, res) => {
+  try {
+    const { id } = req.params;
+    const target = await db.get('SELECT id FROM users WHERE id = ?', id);
+    if (!target) return notFound(res, 'User not found');
+    const { name, email, role, password } = req.body;
+    if (email) {
+      const dup = await db.get('SELECT id FROM users WHERE email = ? AND id != ?', email, id);
+      if (dup) return error(res, 'Email already in use', 409);
+    }
+    const hashedPassword = password ? await bcrypt.hash(password, 12) : null;
+    await db.run(
+      'UPDATE users SET name = COALESCE(?, name), email = COALESCE(?, email), role = COALESCE(?, role), password = COALESCE(?, password) WHERE id = ?',
+      name || null, email || null, role || null, hashedPassword, id
+    );
+    const updated = await db.get(
+      'SELECT id, name, email, role, avatar_url, is_active, created_at FROM users WHERE id = ?', id
+    );
+    return success(res, updated, 'User updated');
+  } catch (err) {
+    return error(res, 'Error updating user');
+  }
+});
+
+router.patch('/:id/status', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (Number(id) === req.user.id) return forbidden(res, 'Cannot change your own status');
+    const target = await db.get('SELECT id, is_active FROM users WHERE id = ?', id);
+    if (!target) return notFound(res, 'User not found');
+    await db.run('UPDATE users SET is_active = ? WHERE id = ?', target.is_active ? 0 : 1, id);
+    const updated = await db.get(
+      'SELECT id, name, email, role, avatar_url, is_active, created_at FROM users WHERE id = ?', id
+    );
+    return success(res, updated, 'User status updated');
+  } catch (err) {
+    return error(res, 'Error updating status');
+  }
+});
+
+router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (Number(id) === req.user.id) return forbidden(res, 'Cannot delete your own account');
+    const target = await db.get('SELECT id FROM users WHERE id = ?', id);
+    if (!target) return notFound(res, 'User not found');
+    await db.run('DELETE FROM users WHERE id = ?', id);
+    return success(res, null, 'User deleted');
+  } catch (err) {
+    return error(res, 'Error deleting user');
+  }
+});
+
 module.exports = router;

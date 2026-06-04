@@ -14,6 +14,7 @@ import ActivitiesPage from './pages/ActivitiesPage'
 import NotesPage from './pages/NotesPage'
 import ProfilePage from './pages/ProfilePage'
 import ChatPage from './pages/ChatPage'
+import UsersPage from './pages/UsersPage'
 
 function NotFound() {
   return (
@@ -45,6 +46,7 @@ export default function App() {
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/chat/:conversationId" element={<ChatPage />} />
+        <Route path="/users" element={<UsersPage />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

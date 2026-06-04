@@ -8,7 +8,8 @@ let _client;
 
 function getClient() {
   if (!_client) {
-    _client = createClient({ url: `file:${path.resolve(dbPath)}` });
+    const url = dbPath === ':memory:' ? ':memory:' : `file:${path.resolve(dbPath)}`;
+    _client = createClient({ url });
   }
   return _client;
 }

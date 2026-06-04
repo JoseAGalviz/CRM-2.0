@@ -7,6 +7,7 @@ const jwt     = require('jsonwebtoken');
 const { Server } = require('socket.io');
 const { db } = require('./db/database');
 const { runMigrations } = require('./db/migrations');
+const { seed } = require('./db/seed');
 const { authLimiter, apiLimiter } = require('./middleware/rateLimiter');
 
 const app    = express();
@@ -246,6 +247,9 @@ const PORT = process.env.PORT || 5000;
 async function start() {
   try {
     await runMigrations();
+    if (process.env.DB_PATH === ':memory:' || process.env.DEMO_SEED === 'true') {
+      await seed();
+    }
     server.listen(PORT, () => {
       console.log(`🚀 CRM Server running on port ${PORT} [${process.env.NODE_ENV}]`);
       console.log(`💬 Socket.IO ready`);

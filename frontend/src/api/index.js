@@ -15,6 +15,10 @@ export const usersAPI = {
   get: (id) => client.get(`/users/${id}`),
   updateMe: (data) => client.put('/users/me', data),
   changePassword: (data) => client.put('/users/me/password', data),
+  create: (data) => client.post('/users', data),
+  update: (id, data) => client.put(`/users/${id}`, data),
+  toggleStatus: (id) => client.patch(`/users/${id}/status`),
+  delete: (id) => client.delete(`/users/${id}`),
 }
 
 // Dashboard
