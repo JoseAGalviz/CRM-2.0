@@ -33,6 +33,19 @@ export default function LoginPage() {
     }
   }
 
+  const demo = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      await login('demo@crm.com', 'demo123')
+      navigate('/dashboard')
+    } catch {
+      toast.error('Demo no disponible.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* ── Left panel (desktop) ───────────────────────────────────────────── */}
@@ -127,6 +140,19 @@ export default function LoginPage() {
               {loading ? <Spinner size="sm" /> : 'Iniciar sesión'}
             </button>
           </form>
+
+          <div className="relative my-5">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-100" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="px-3 text-xs text-gray-400 bg-white">o prueba con</span>
+            </div>
+          </div>
+
+          <button onClick={demo} disabled={loading} className="btn-secondary w-full">
+            Entrar con cuenta demo
+          </button>
 
           <p className="text-center text-sm text-gray-500 mt-6">
             ¿No tienes cuenta?{' '}
