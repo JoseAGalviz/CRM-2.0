@@ -33,10 +33,12 @@ app.use(helmet({
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5173'];
 const localNetworkPattern = /^https?:\/\/(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?$/;
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || localNetworkPattern.test(origin)) callback(null, true);
-    else callback(new Error('Not allowed by CORS'));
-  },
+  origin: process.env.NODE_ENV === 'production'
+    ? true
+    : (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin) || localNetworkPattern.test(origin)) callback(null, true);
+        else callback(new Error('Not allowed by CORS'));
+      },
   credentials: true,
 }));
 
