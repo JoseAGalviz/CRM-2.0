@@ -33,7 +33,7 @@ function ConvAvatar({ conv, size = 10 }) {
 }
 
 export default function ConversationList({ onSelect }) {
-  const { conversations, activeConvId, openConversation, loadingConvs } = useChat()
+  const { conversations, activeConvId, openConversation, loadingConvs, onlineUsers } = useChat()
   const { user } = useAuth()
   const [search, setSearch] = useState('')
 
@@ -96,7 +96,12 @@ export default function ConversationList({ onSelect }) {
                   isActive ? 'bg-violet-50 border-l-2 border-l-violet-500' : ''
                 }`}
               >
-                <ConvAvatar conv={conv} size={10} />
+                <div className="relative flex-shrink-0">
+                  <ConvAvatar conv={conv} size={10} />
+                  {conv.type === 'direct' && conv.peer && onlineUsers?.has(conv.peer.id) && (
+                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full" />
+                  )}
+                </div>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-1">

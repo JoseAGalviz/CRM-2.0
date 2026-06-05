@@ -249,10 +249,21 @@ async function runMigrations() {
     END
   `);
 
-  // Add reply_to_id to chat_messages if not exists (safe to run multiple times)
-  try {
-    await db.exec(`ALTER TABLE chat_messages ADD COLUMN reply_to_id INTEGER REFERENCES chat_messages(id)`);
-  } catch {}
+  try { await db.exec(`ALTER TABLE chat_messages ADD COLUMN reply_to_id INTEGER REFERENCES chat_messages(id)`); } catch {}
+  try { await db.exec(`ALTER TABLE chat_messages ADD COLUMN edited_at TEXT`); } catch {}
+
+  // ── Chat reactions ────────────────────────────────────────────────────────
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS chat_reactions (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      message_id INTEGER NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      emoji      TEXT    NOT NULL,
+      created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(message_id, user_id, emoji)
+    )
+  `);
+  await db.exec(`CREATE INDEX IF NOT EXISTS idx_chat_reactions_msg ON chat_reactions(message_id)`);
 
   // ── Audit log ────────────────────────────────────────────────────────────────
 

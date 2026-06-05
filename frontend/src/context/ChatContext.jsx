@@ -5,6 +5,22 @@ import toast from 'react-hot-toast'
 import { chatApi } from '../api/chat'
 import { useAuth } from './AuthContext'
 
+function playNotificationBeep() {
+  try {
+    const ctx  = new (window.AudioContext || window.webkitAudioContext)()
+    const osc  = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.type = 'sine'
+    osc.frequency.value = 880
+    gain.gain.setValueAtTime(0.08, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25)
+    osc.start(ctx.currentTime)
+    osc.stop(ctx.currentTime + 0.25)
+  } catch {}
+}
+
 const ChatContext = createContext(null)
 
 // Toast component rendered inside Toaster (inside BrowserRouter) so useNavigate works
@@ -33,12 +49,14 @@ export function ChatProvider({ children }) {
   const [conversations, setConversations]   = useState([])
   const [activeConvId, setActiveConvId]     = useState(null)
   const [messages, setMessages]             = useState({})
+  const [hasMoreMessages, setHasMoreMessages] = useState({})
   const [typingUsers, setTypingUsers]       = useState({})
   const [loadingConvs, setLoadingConvs]     = useState(false)
   const [loadingMsgs, setLoadingMsgs]       = useState(false)
   const [connected, setConnected]           = useState(false)
+  const [onlineUsers, setOnlineUsers]       = useState(new Set())
+  const [users, setUsers]                   = useState([])
 
-  const notificationSound = useRef(null)
   const typingTimers = useRef({})
 
   const totalUnread = conversations.reduce((s, c) => s + (c.unread_count || 0), 0)
@@ -47,13 +65,9 @@ export function ChatProvider({ children }) {
   const activeConvIdRef = useRef(activeConvId)
   useEffect(() => { activeConvIdRef.current = activeConvId }, [activeConvId])
 
-  // Lazy-init audio on first user interaction to avoid autoplay block
-  const getSound = useCallback(() => {
-    if (!notificationSound.current) {
-      notificationSound.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3')
-    }
-    return notificationSound.current
-  }, [])
+  // Keep messages in a ref so openConversation doesn't recreate on every message
+  const messagesRef = useRef(messages)
+  useEffect(() => { messagesRef.current = messages }, [messages])
 
   const loadConversations = useCallback(async () => {
     if (!user) return
@@ -68,6 +82,15 @@ export function ChatProvider({ children }) {
     }
   }, [user])
 
+  const loadUsers = useCallback(async () => {
+    try {
+      const data = await chatApi.getUsers()
+      setUsers(data)
+    } catch (e) {
+      console.error('loadUsers', e)
+    }
+  }, [])
+
   const loadMessages = useCallback(async (convId, before = null) => {
     setLoadingMsgs(true)
     try {
@@ -77,6 +100,7 @@ export function ChatProvider({ children }) {
         ...prev,
         [convId]: before ? [...data, ...(prev[convId] || [])] : data,
       }))
+      setHasMoreMessages(prev => ({ ...prev, [convId]: data.length === 50 }))
       return data
     } catch (e) {
       console.error('loadMessages', e)
@@ -88,7 +112,7 @@ export function ChatProvider({ children }) {
 
   const openConversation = useCallback(async (convId) => {
     setActiveConvId(convId)
-    if (!messages[convId]) await loadMessages(convId)
+    if (!messagesRef.current[convId]) await loadMessages(convId)
 
     if (socketRef.current?.connected) {
       socketRef.current.emit('mark_read', { conversationId: convId })
@@ -99,7 +123,7 @@ export function ChatProvider({ children }) {
     setConversations(prev =>
       prev.map(c => c.id === convId ? { ...c, unread_count: 0 } : c)
     )
-  }, [messages, loadMessages])
+  }, [loadMessages])
 
   const sendMessage = useCallback((convId, content, reply_to_id = null) => {
     if (!content?.trim()) return
@@ -149,6 +173,44 @@ export function ChatProvider({ children }) {
     })
     socket.on('disconnect', () => setConnected(false))
 
+    // Online presence
+    socket.on('online_users', ({ userIds }) => setOnlineUsers(new Set(userIds)))
+    socket.on('user_online',  ({ userId }) => setOnlineUsers(s => new Set([...s, userId])))
+    socket.on('user_offline', ({ userId }) => setOnlineUsers(s => { const n = new Set(s); n.delete(userId); return n }))
+
+    // Message editing
+    socket.on('message_edited', ({ messageId, content, editedAt }) => {
+      setMessages(prev => {
+        const updated = {}
+        for (const [cid, msgs] of Object.entries(prev)) {
+          updated[cid] = msgs.map(m => m.id === messageId ? { ...m, content, edited_at: editedAt } : m)
+        }
+        return updated
+      })
+    })
+
+    // Message deletion
+    socket.on('message_deleted', ({ messageId, deletedAt }) => {
+      setMessages(prev => {
+        const updated = {}
+        for (const [cid, msgs] of Object.entries(prev)) {
+          updated[cid] = msgs.map(m => m.id === messageId ? { ...m, deleted_at: deletedAt, content: '' } : m)
+        }
+        return updated
+      })
+    })
+
+    // Reactions
+    socket.on('reaction_updated', ({ messageId, reactions }) => {
+      setMessages(prev => {
+        const updated = {}
+        for (const [cid, msgs] of Object.entries(prev)) {
+          updated[cid] = msgs.map(m => m.id === messageId ? { ...m, reactions } : m)
+        }
+        return updated
+      })
+    })
+
     socket.on('new_message', (msg) => {
       const cid = msg.conversation_id
 
@@ -159,7 +221,7 @@ export function ChatProvider({ children }) {
 
       if (msg.sender_id !== user.id) {
         // Sound notification
-        getSound().play().catch(() => {})
+        playNotificationBeep()
 
         // Toast notification when not in this conversation
         if (activeConvIdRef.current !== cid) {
@@ -242,6 +304,7 @@ export function ChatProvider({ children }) {
     })
 
     loadConversations()
+    loadUsers()
 
     return () => {
       socket.disconnect()
@@ -251,8 +314,8 @@ export function ChatProvider({ children }) {
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const value = {
-    conversations, activeConvId, messages, typingUsers,
-    loadingConvs, loadingMsgs, connected, totalUnread,
+    conversations, activeConvId, messages, hasMoreMessages, typingUsers,
+    loadingConvs, loadingMsgs, connected, totalUnread, onlineUsers, users,
     openConversation, sendMessage, emitTyping, createConversation,
     addMembers, removeMember, loadMessages, loadConversations, setActiveConvId,
   }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useChat } from '../context/ChatContext'
 import { useAuth } from '../context/AuthContext'
@@ -60,7 +60,7 @@ export default function ChatPage() {
   const { user }           = useAuth()
   const {
     conversations, activeConvId, openConversation, setActiveConvId,
-    messages, typingUsers, connected, loadMessages,
+    messages, hasMoreMessages, typingUsers, connected, loadMessages, onlineUsers,
   } = useChat()
 
   const [showCreate, setShowCreate]   = useState(false)
@@ -106,7 +106,7 @@ export default function ChatPage() {
   const handleScroll = useCallback(async () => {
     const box = messagesBoxRef.current
     if (!box || loadingMore || !activeConvId) return
-    if (box.scrollTop < 50 && convMsgs.length >= 50) {
+    if (box.scrollTop < 50 && hasMoreMessages[activeConvId]) {
       const oldest = convMsgs[0]
       if (!oldest) return
       setLoadingMore(true)
@@ -119,7 +119,7 @@ export default function ChatPage() {
         }
       })
     }
-  }, [loadingMore, activeConvId, convMsgs, loadMessages])
+  }, [loadingMore, activeConvId, convMsgs, loadMessages, hasMoreMessages])
 
   function handleCreated(conv) {
     openConversation(conv.id)
@@ -131,7 +131,7 @@ export default function ChatPage() {
     if (activeConvId) navigate(`/chat/${activeConvId}`)
   }
 
-  function renderMessages() {
+  const renderedMessages = useMemo(() => {
     const items = []
     let lastDate = null
     convMsgs.forEach((msg, i) => {
@@ -148,11 +148,12 @@ export default function ChatPage() {
           isGroup={isGroup}
           members={members}
           onReply={setReplyTo}
+          convId={activeConvId}
         />
       )
     })
     return items
-  }
+  }, [convMsgs, isGroup, members, activeConvId])
 
   return (
     <div className="flex -m-4 md:-m-6 bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100" style={{ height: 'calc(100dvh - 3.5rem)' }}>
@@ -220,8 +221,11 @@ export default function ChatPage() {
 
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-gray-900 text-sm leading-tight truncate">{convName}</p>
-                <p className="text-xs text-gray-400">
-                  {isGroup ? `${activeConv?.member_count || members.length} miembros` : 'Chat privado'}
+                <p className="text-xs text-gray-400 flex items-center gap-1">
+                  {!isGroup && activeConv?.peer && onlineUsers.has(activeConv.peer.id) && (
+                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full inline-block" />
+                  )}
+                  {isGroup ? `${activeConv?.member_count || members.length} miembros` : (onlineUsers.has(activeConv?.peer?.id) ? 'En línea' : 'Chat privado')}
                 </p>
               </div>
 
@@ -255,7 +259,7 @@ export default function ChatPage() {
                   <p className="text-gray-300 text-xs mt-1">¡Sé el primero en escribir!</p>
                 </div>
               )}
-              {renderMessages()}
+              {renderedMessages}
               <TypingIndicator names={typingNames} />
               <div ref={messagesEndRef} />
             </div>

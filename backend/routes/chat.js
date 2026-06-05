@@ -169,7 +169,7 @@ router.get('/conversations/:id/messages', async (req, res, next) => {
 
     const rows = await db.all(
       `SELECT
-         m.id, m.conversation_id, m.sender_id, m.content, m.type, m.created_at, m.deleted_at,
+         m.id, m.conversation_id, m.sender_id, m.content, m.type, m.created_at, m.deleted_at, m.edited_at,
          m.reply_to_id,
          u.name AS sender_name, u.avatar_url AS sender_avatar,
          rm.content  AS reply_content,
@@ -178,7 +178,12 @@ router.get('/conversations/:id/messages', async (req, res, next) => {
           FROM chat_message_reads r
           JOIN users ru2 ON ru2.id = r.user_id
           WHERE r.message_id = m.id
-         ) AS reads_json
+         ) AS reads_json,
+         (SELECT json_group_array(json_object('emoji', cr.emoji, 'user_id', cr.user_id, 'name', uru.name))
+          FROM chat_reactions cr
+          JOIN users uru ON uru.id = cr.user_id
+          WHERE cr.message_id = m.id
+         ) AS reactions_json
        FROM chat_messages m
        JOIN users u ON u.id = m.sender_id
        LEFT JOIN chat_messages rm ON rm.id = m.reply_to_id
@@ -190,11 +195,16 @@ router.get('/conversations/:id/messages', async (req, res, next) => {
       ...[convId, ...(before ? [before] : []), limit]
     );
 
-    // Parse reads_json
-    const messages = rows.reverse().map(m => ({
-      ...m,
-      reads: m.reads_json ? JSON.parse(m.reads_json) : [],
-    }));
+    const messages = rows.reverse().map(m => {
+      const rawReactions = m.reactions_json ? JSON.parse(m.reactions_json) : [];
+      const reactionsMap = rawReactions.reduce((acc, r) => {
+        if (!acc[r.emoji]) acc[r.emoji] = { emoji: r.emoji, count: 0, users: [] };
+        acc[r.emoji].count++;
+        acc[r.emoji].users.push({ user_id: r.user_id, name: r.name });
+        return acc;
+      }, {});
+      return { ...m, reads: m.reads_json ? JSON.parse(m.reads_json) : [], reactions: Object.values(reactionsMap) };
+    });
 
     return success(res, messages);
   } catch (err) { next(err); }
@@ -351,6 +361,108 @@ router.delete('/conversations/:id/members/:userId', async (req, res, next) => {
     );
     return success(res, { removed: true });
   } catch (err) { next(err); }
+});
+
+// ── PATCH /api/chat/conversations/:id/messages/:msgId — edit message ──────────
+router.patch('/conversations/:id/messages/:msgId', async (req, res, next) => {
+  try {
+    const convId = Number(req.params.id);
+    const msgId  = Number(req.params.msgId);
+    const userId = req.user.id;
+    const { content } = req.body;
+
+    if (!(await assertMember(convId, userId, res))) return;
+    if (!content?.trim()) return badRequest(res, 'Contenido vacío');
+
+    const msg = await db.get('SELECT * FROM chat_messages WHERE id = ? AND conversation_id = ?', msgId, convId);
+    if (!msg) return notFound(res, 'Mensaje no encontrado');
+    if (msg.sender_id !== userId) return forbidden(res, 'Solo puedes editar tus mensajes');
+    if (msg.deleted_at) return badRequest(res, 'No se puede editar un mensaje eliminado');
+
+    await db.run(
+      `UPDATE chat_messages SET content = ?, edited_at = datetime('now') WHERE id = ?`,
+      content.trim(), msgId
+    );
+
+    const updated = await db.get('SELECT * FROM chat_messages WHERE id = ?', msgId);
+
+    // Broadcast via socket
+    const io = req.app.get('io');
+    io?.to(`conv:${convId}`).emit('message_edited', { messageId: msgId, content: updated.content, editedAt: updated.edited_at });
+
+    return success(res, updated);
+  } catch (err) { next(err); }
+});
+
+// ── DELETE /api/chat/conversations/:id/messages/:msgId — soft delete ──────────
+router.delete('/conversations/:id/messages/:msgId', async (req, res, next) => {
+  try {
+    const convId = Number(req.params.id);
+    const msgId  = Number(req.params.msgId);
+    const userId = req.user.id;
+
+    if (!(await assertMember(convId, userId, res))) return;
+
+    const msg = await db.get('SELECT * FROM chat_messages WHERE id = ? AND conversation_id = ?', msgId, convId);
+    if (!msg) return notFound(res, 'Mensaje no encontrado');
+    if (msg.sender_id !== userId && req.user.role !== 'admin') return forbidden(res, 'Solo puedes eliminar tus mensajes');
+
+    await db.run(`UPDATE chat_messages SET deleted_at = datetime('now'), content = '' WHERE id = ?`, msgId);
+
+    const io = req.app.get('io');
+    io?.to(`conv:${convId}`).emit('message_deleted', { messageId: msgId, deletedAt: new Date().toISOString() });
+
+    return success(res, { deleted: true });
+  } catch (err) { next(err); }
+});
+
+// ── POST /api/chat/conversations/:id/messages/:msgId/react — toggle reaction ──
+router.post('/conversations/:id/messages/:msgId/react', async (req, res, next) => {
+  try {
+    const convId = Number(req.params.id);
+    const msgId  = Number(req.params.msgId);
+    const userId = req.user.id;
+    const { emoji } = req.body;
+
+    if (!emoji) return badRequest(res, 'Emoji requerido');
+    if (!(await assertMember(convId, userId, res))) return;
+
+    const msg = await db.get('SELECT id FROM chat_messages WHERE id = ? AND conversation_id = ? AND deleted_at IS NULL', msgId, convId);
+    if (!msg) return notFound(res, 'Mensaje no encontrado');
+
+    // Toggle: if exists remove, if not add
+    const existing = await db.get('SELECT id FROM chat_reactions WHERE message_id = ? AND user_id = ? AND emoji = ?', msgId, userId, emoji);
+    if (existing) {
+      await db.run('DELETE FROM chat_reactions WHERE id = ?', existing.id);
+    } else {
+      await db.run('INSERT INTO chat_reactions (message_id, user_id, emoji) VALUES (?, ?, ?)', msgId, userId, emoji);
+    }
+
+    // Build full reactions for this message
+    const rows = await db.all(
+      `SELECT cr.emoji, cr.user_id, u.name FROM chat_reactions cr JOIN users u ON u.id = cr.user_id WHERE cr.message_id = ?`,
+      msgId
+    );
+    const reactions = rows.reduce((acc, r) => {
+      if (!acc[r.emoji]) acc[r.emoji] = { emoji: r.emoji, count: 0, users: [] };
+      acc[r.emoji].count++;
+      acc[r.emoji].users.push({ user_id: r.user_id, name: r.name });
+      return acc;
+    }, {});
+
+    const io = req.app.get('io');
+    io?.to(`conv:${convId}`).emit('reaction_updated', { messageId: msgId, reactions: Object.values(reactions) });
+
+    return success(res, Object.values(reactions));
+  } catch (err) { next(err); }
+});
+
+// ── GET /api/chat/online — list online user IDs ───────────────────────────────
+router.get('/online', async (req, res) => {
+  const io = req.app.get('io');
+  const onlineSockets = await io?.fetchSockets() || [];
+  const onlineIds = [...new Set(onlineSockets.map(s => s.user?.id).filter(Boolean))];
+  return success(res, onlineIds);
 });
 
 module.exports = router;
