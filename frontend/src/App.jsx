@@ -3,18 +3,24 @@ import ProtectedRoute from './components/layout/ProtectedRoute'
 import AppShell from './components/layout/AppShell'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import DashboardPage from './pages/DashboardPage'
 import ContactsPage from './pages/ContactsPage'
 import ContactDetailPage from './pages/ContactDetailPage'
 import CompaniesPage from './pages/CompaniesPage'
 import CompanyDetailPage from './pages/CompanyDetailPage'
 import DealsPage from './pages/DealsPage'
+import DealDetailPage from './pages/DealDetailPage'
 import TasksPage from './pages/TasksPage'
 import ActivitiesPage from './pages/ActivitiesPage'
 import NotesPage from './pages/NotesPage'
 import ProfilePage from './pages/ProfilePage'
 import ChatPage from './pages/ChatPage'
 import UsersPage from './pages/UsersPage'
+import AuditLogPage from './pages/AuditLogPage'
+import WebhooksPage from './pages/WebhooksPage'
+import PipelineSettingsPage from './pages/PipelineSettingsPage'
 
 function NotFound() {
   return (
@@ -32,6 +38,8 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
         <Route path="/dashboard" element={<DashboardPage />} />
@@ -40,6 +48,7 @@ export default function App() {
         <Route path="/companies" element={<CompaniesPage />} />
         <Route path="/companies/:id" element={<CompanyDetailPage />} />
         <Route path="/deals" element={<DealsPage />} />
+        <Route path="/deals/:id" element={<DealDetailPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/activities" element={<ActivitiesPage />} />
         <Route path="/notes" element={<NotesPage />} />
@@ -47,6 +56,9 @@ export default function App() {
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/chat/:conversationId" element={<ChatPage />} />
         <Route path="/users" element={<UsersPage />} />
+        <Route path="/audit-log" element={<AuditLogPage />} />
+        <Route path="/webhooks" element={<WebhooksPage />} />
+        <Route path="/pipeline-settings" element={<PipelineSettingsPage />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

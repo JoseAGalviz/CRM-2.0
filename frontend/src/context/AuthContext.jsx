@@ -24,11 +24,20 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (email, password) => {
     const res = await authAPI.login({ email, password })
-    const { user, accessToken, refreshToken } = res.data.data
+    const data = res.data.data
+    // If 2FA required, return the partial response without setting tokens
+    if (data.requires2fa) return data
+    const { user, accessToken, refreshToken } = data
     localStorage.setItem('accessToken', accessToken)
     localStorage.setItem('refreshToken', refreshToken)
     setUser(user)
     return user
+  }, [])
+
+  const loginWithTokens = useCallback((user, accessToken, refreshToken) => {
+    localStorage.setItem('accessToken', accessToken)
+    localStorage.setItem('refreshToken', refreshToken)
+    setUser(user)
   }, [])
 
   const register = useCallback(async (name, email, password) => {
@@ -51,7 +60,7 @@ export function AuthProvider({ children }) {
   const isDemo = user?.role === 'demo'
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading, isDemo }}>
+    <AuthContext.Provider value={{ user, login, loginWithTokens, register, logout, loading, isDemo }}>
       {children}
     </AuthContext.Provider>
   )

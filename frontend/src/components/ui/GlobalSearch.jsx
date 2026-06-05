@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import client from '../../api/client'
-import { DEAL_STAGES } from '../../utils/constants'
+import { DEAL_STAGES as DEAL_STAGES_FALLBACK } from '../../utils/constants'
+import { usePipelineStages } from '../../hooks/usePipelineStages'
 import Spinner from './Spinner'
-import { UserIcon, BuildingIcon, BriefcaseIcon } from './icons'
+import { UserIcon, BuildingIcon, BriefcaseIcon, CheckCircleIcon, ActivityTypeIcon } from './icons'
 
 function useDebounce(value, delay) {
   const [debounced, setDebounced] = useState(value)
@@ -28,6 +29,7 @@ function highlight(text, query) {
 }
 
 export default function GlobalSearch({ isOpen, onClose }) {
+  const { stages: DEAL_STAGES } = usePipelineStages()
   const [query, setQuery]       = useState('')
   const [results, setResults]   = useState(null)
   const [loading, setLoading]   = useState(false)
@@ -54,10 +56,15 @@ export default function GlobalSearch({ isOpen, onClose }) {
       .finally(() => setLoading(false))
   }, [debouncedQuery])
 
+  const noteUrl = (n) => n.contact_id ? `/contacts/${n.contact_id}` : n.deal_id ? `/deals/${n.deal_id}` : n.company_id ? `/companies/${n.company_id}` : `/notes`
+
   const allItems = results ? [
     ...results.contacts.map(c => ({ type: 'contact', id: c.id, primary: `${c.first_name} ${c.last_name}`, secondary: c.job_title || c.email || '', url: `/contacts/${c.id}` })),
     ...results.companies.map(c => ({ type: 'company', id: c.id, primary: c.name, secondary: c.industry || '', url: `/companies/${c.id}` })),
-    ...results.deals.map(d => ({ type: 'deal', id: d.id, primary: d.title, secondary: DEAL_STAGES.find(s => s.value === d.stage)?.label || d.stage, url: `/deals` })),
+    ...results.deals.map(d => ({ type: 'deal', id: d.id, primary: d.title, secondary: DEAL_STAGES.find(s => s.value === d.stage)?.label || d.stage, url: `/deals/${d.id}` })),
+    ...(results.tasks || []).map(t => ({ type: 'task', id: t.id, primary: t.title, secondary: t.assigned_name || t.status, url: `/tasks` })),
+    ...(results.activities || []).map(a => ({ type: 'activity', id: a.id, primary: a.subject, secondary: a.contact_name || a.type, url: `/activities` })),
+    ...(results.notes || []).map(n => ({ type: 'note', id: n.id, primary: n.content.slice(0, 60), secondary: n.contact_name || n.deal_title || n.company_name || 'Nota', url: noteUrl(n) })),
   ] : []
 
   const go = useCallback((item) => {
@@ -80,11 +87,14 @@ export default function GlobalSearch({ isOpen, onClose }) {
   if (!isOpen) return null
 
   const typeIcon = {
-    contact: <UserIcon className="w-4 h-4" />,
-    company: <BuildingIcon className="w-4 h-4" />,
-    deal:    <BriefcaseIcon className="w-4 h-4" />,
+    contact:  <UserIcon className="w-4 h-4" />,
+    company:  <BuildingIcon className="w-4 h-4" />,
+    deal:     <BriefcaseIcon className="w-4 h-4" />,
+    task:     <CheckCircleIcon className="w-4 h-4" />,
+    activity: <ActivityTypeIcon type="call" className="w-4 h-4" />,
+    note:     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>,
   }
-  const typeLabel = { contact: 'Contacto', company: 'Empresa', deal: 'Negocio' }
+  const typeLabel = { contact: 'Contacto', company: 'Empresa', deal: 'Negocio', task: 'Tarea', activity: 'Actividad', note: 'Nota' }
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh]" onClick={onClose}>
@@ -102,7 +112,7 @@ export default function GlobalSearch({ isOpen, onClose }) {
             ref={inputRef}
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Buscar contactos, empresas, negocios..."
+            placeholder="Buscar contactos, empresas, negocios, tareas..."
             className="flex-1 text-sm outline-none placeholder-gray-400"
           />
           {loading && <Spinner size="sm" />}

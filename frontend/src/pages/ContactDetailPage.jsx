@@ -1,16 +1,19 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { contactsAPI, notesAPI } from '../api/index'
 import { formatDate, formatDateRelative } from '../utils/formatters'
-import { DEAL_STAGES, ACTIVITY_TYPES, TASK_STATUSES } from '../utils/constants'
+import { ACTIVITY_TYPES, TASK_STATUSES } from '../utils/constants'
+import { usePipelineStages } from '../hooks/usePipelineStages'
 import toast from 'react-hot-toast'
 import Spinner from '../components/ui/Spinner'
 import Avatar from '../components/ui/Avatar'
 import Modal from '../components/ui/Modal'
 import { MailIcon, PhoneIcon, LinkIcon, ActivityTypeIcon } from '../components/ui/icons'
+import AuditLogPanel from '../components/ui/AuditLogPanel'
 
 export default function ContactDetailPage() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const [contact, setContact] = useState(null)
   const [deals, setDeals] = useState([])
   const [activities, setActivities] = useState([])
@@ -21,6 +24,11 @@ export default function ContactDetailPage() {
   const [noteText, setNoteText] = useState('')
   const [editNote, setEditNote] = useState(null)
   const [tab, setTab] = useState('overview')
+  const [mergeModal, setMergeModal] = useState(false)
+  const [mergeSearch, setMergeSearch] = useState('')
+  const [mergeCandidates, setMergeCandidates] = useState([])
+  const [mergeTarget, setMergeTarget] = useState(null)
+  const [merging, setMerging] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -62,6 +70,32 @@ export default function ContactDetailPage() {
     } catch { toast.error('Error eliminando') }
   }
 
+  useEffect(() => {
+    if (!mergeSearch.trim()) { setMergeCandidates([]); return }
+    const t = setTimeout(async () => {
+      try {
+        const res = await contactsAPI.list({ search: mergeSearch, limit: 10 })
+        setMergeCandidates(res.data.data.contacts.filter(c => String(c.id) !== id))
+      } catch {}
+    }, 300)
+    return () => clearTimeout(t)
+  }, [mergeSearch, id])
+
+  const handleMerge = async () => {
+    if (!mergeTarget) return
+    setMerging(true)
+    try {
+      const res = await contactsAPI.merge(parseInt(id), mergeTarget.id)
+      toast.success(`Fusionado con ${mergeTarget.first_name} ${mergeTarget.last_name}`)
+      setMergeModal(false); setMergeTarget(null); setMergeSearch('')
+      setContact(res.data.data)
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Error fusionando')
+    } finally { setMerging(false) }
+  }
+
+  const { stages: DEAL_STAGES } = usePipelineStages()
+
   if (loading) return <div className="flex justify-center py-20"><Spinner size="lg" /></div>
   if (!contact) return <div className="text-center py-20 text-gray-500">Contacto no encontrado</div>
 
@@ -76,6 +110,7 @@ export default function ContactDetailPage() {
     { id: 'activities', label: `Actividades (${activities.length})` },
     { id: 'tasks', label: `Tareas (${tasks.length})` },
     { id: 'notes', label: `Notas (${notes.length})` },
+    { id: 'historial', label: 'Historial' },
   ]
 
   return (
@@ -110,7 +145,10 @@ export default function ContactDetailPage() {
               )}
             </div>
           </div>
-          <span className={`badge ${contact.status === 'active' ? 'badge-green' : 'badge-gray'}`}>{contact.status === 'active' ? 'Activo' : 'Inactivo'}</span>
+          <div className="flex flex-col items-end gap-2">
+            <span className={`badge ${contact.status === 'active' ? 'badge-green' : 'badge-gray'}`}>{contact.status === 'active' ? 'Activo' : 'Inactivo'}</span>
+            <button onClick={() => setMergeModal(true)} className="btn-secondary btn-sm text-xs">Fusionar con...</button>
+          </div>
         </div>
       </div>
 
@@ -159,7 +197,7 @@ export default function ContactDetailPage() {
         <div className="space-y-3">
           {deals.length === 0 ? <p className="text-center text-gray-400 py-10">Sin negocios asociados</p> :
             deals.map(d => (
-              <Link key={d.id} to="/deals" className="card p-4 flex items-center gap-3 hover:shadow-sm block">
+              <Link key={d.id} to={`/deals/${d.id}`} className="card p-4 flex items-center gap-3 hover:shadow-sm block">
                 <div className="flex-1">
                   <p className="font-medium text-gray-900">{d.title}</p>
                   <p className="text-sm text-gray-500">{new Intl.NumberFormat('es-ES', { style: 'currency', currency: d.currency || 'USD' }).format(d.value)}</p>
@@ -229,12 +267,47 @@ export default function ContactDetailPage() {
         </div>
       )}
 
+      {tab === 'historial' && <AuditLogPanel entityType="contact" entityId={id} />}
+
       {/* Note modal */}
       <Modal isOpen={noteModal} onClose={() => setNoteModal(false)} title={editNote ? 'Editar nota' : 'Nueva nota'} size="sm">
         <textarea className="input h-32 resize-none" placeholder="Escribe tu nota..." value={noteText} onChange={e => setNoteText(e.target.value)} />
         <div className="flex gap-3 mt-4 justify-end">
           <button onClick={() => setNoteModal(false)} className="btn-secondary">Cancelar</button>
           <button onClick={saveNote} className="btn-primary">Guardar</button>
+        </div>
+      </Modal>
+
+      {/* Merge modal */}
+      <Modal isOpen={mergeModal} onClose={() => { setMergeModal(false); setMergeTarget(null); setMergeSearch('') }} title="Fusionar contacto" size="md">
+        <div className="space-y-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+            <strong>Este contacto</strong> ({contact.first_name} {contact.last_name}) se mantendrá. Los datos del contacto seleccionado se fusionarán y ese contacto será eliminado.
+          </div>
+          <div>
+            <label className="label">Buscar contacto a fusionar</label>
+            <input className="input" placeholder="Nombre o email..." value={mergeSearch} onChange={e => { setMergeSearch(e.target.value); setMergeTarget(null) }} />
+          </div>
+          {mergeCandidates.length > 0 && (
+            <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-48 overflow-y-auto">
+              {mergeCandidates.map(c => (
+                <button key={c.id} onClick={() => { setMergeTarget(c); setMergeSearch(`${c.first_name} ${c.last_name}`) }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors ${mergeTarget?.id === c.id ? 'bg-primary-50' : ''}`}>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900">{c.first_name} {c.last_name}</p>
+                    <p className="text-xs text-gray-500">{c.email || '—'} · {c.company_name || '—'}</p>
+                  </div>
+                  {mergeTarget?.id === c.id && <span className="text-primary-600 text-xs font-medium">Seleccionado</span>}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-3 justify-end pt-2">
+            <button onClick={() => { setMergeModal(false); setMergeTarget(null); setMergeSearch('') }} className="btn-secondary">Cancelar</button>
+            <button onClick={handleMerge} disabled={!mergeTarget || merging} className="btn-primary">
+              {merging ? <Spinner size="sm" /> : 'Fusionar'}
+            </button>
+          </div>
         </div>
       </Modal>
     </div>

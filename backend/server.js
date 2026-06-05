@@ -8,8 +8,9 @@ const jwt     = require('jsonwebtoken');
 const { Server } = require('socket.io');
 const { db } = require('./db/database');
 const { runMigrations } = require('./db/migrations');
+const webhookUtil = require('./utils/webhook');
 const { seed } = require('./db/seed');
-const { authLimiter, apiLimiter } = require('./middleware/rateLimiter');
+const { authLimiter, apiLimiter, passwordResetLimiter } = require('./middleware/rateLimiter');
 
 const app    = express();
 const server = http.createServer(app);
@@ -35,12 +36,12 @@ app.use(helmet({
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5173'];
 const localNetworkPattern = /^https?:\/\/(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?$/;
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? true
-    : (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin) || localNetworkPattern.test(origin)) callback(null, true);
-        else callback(new Error('Not allowed by CORS'));
-      },
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // same-origin / curl
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (process.env.NODE_ENV !== 'production' && localNetworkPattern.test(origin)) return callback(null, true);
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
 }));
 
@@ -51,6 +52,8 @@ app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 // ── Rate limiting ─────────────────────────────────────────────────────────────
 app.use('/api/', apiLimiter);
 app.use('/api/auth', authLimiter);
+app.use('/api/auth/forgot-password', passwordResetLimiter);
+app.use('/api/auth/reset-password', passwordResetLimiter);
 
 // ── Demo guard – block mutations for demo-role users ─────────────────────────
 app.use('/api', (req, res, next) => {
@@ -78,7 +81,11 @@ app.use('/api/activities',  require('./routes/activities'));
 app.use('/api/notes',       require('./routes/notes'));
 app.use('/api/dashboard',   require('./routes/dashboard'));
 app.use('/api/chat',        require('./routes/chat'));
-app.use('/api/search',     require('./routes/search'));
+app.use('/api/search',      require('./routes/search'));
+app.use('/api/audit-logs', require('./routes/audit'));
+app.use('/api/webhooks',  require('./routes/webhooks').router);
+app.use('/api/auth/2fa',  require('./routes/totp'));
+app.use('/api/pipeline', require('./routes/pipeline'));
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
@@ -281,6 +288,7 @@ const PORT = process.env.PORT || 5000;
 async function start() {
   try {
     await runMigrations();
+    webhookUtil.setDb(db);
     if (process.env.DB_PATH === ':memory:' || process.env.DEMO_SEED === 'true') {
       await seed();
     }

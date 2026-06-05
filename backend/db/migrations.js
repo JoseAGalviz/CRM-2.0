@@ -254,6 +254,113 @@ async function runMigrations() {
     await db.exec(`ALTER TABLE chat_messages ADD COLUMN reply_to_id INTEGER REFERENCES chat_messages(id)`);
   } catch {}
 
+  // ── Audit log ────────────────────────────────────────────────────────────────
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      action      TEXT NOT NULL,
+      entity_type TEXT NOT NULL,
+      entity_id   INTEGER NOT NULL,
+      entity_name TEXT,
+      changes     TEXT,
+      ip_address  TEXT,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  const auditIndexes = [
+    'CREATE INDEX IF NOT EXISTS idx_audit_entity  ON audit_logs(entity_type, entity_id)',
+    'CREATE INDEX IF NOT EXISTS idx_audit_user    ON audit_logs(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at)',
+  ];
+  for (const idx of auditIndexes) await db.exec(idx);
+
+  // ── Password reset tokens ─────────────────────────────────────────────────
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      token      TEXT    NOT NULL UNIQUE,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at TEXT    NOT NULL,
+      used_at    TEXT,
+      created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+  await db.exec(`CREATE INDEX IF NOT EXISTS idx_reset_tokens_token ON password_reset_tokens(token)`);
+
+  // ── 2FA columns on users ──────────────────────────────────────────────────
+  try { await db.exec(`ALTER TABLE users ADD COLUMN totp_secret TEXT`); } catch {}
+  try { await db.exec(`ALTER TABLE users ADD COLUMN totp_enabled INTEGER NOT NULL DEFAULT 0`); } catch {}
+
+  // ── Tags on deals and companies (safe ALTER TABLE) ────────────────────────
+  try { await db.exec(`ALTER TABLE deals ADD COLUMN tags TEXT DEFAULT '[]'`); } catch {}
+  try { await db.exec(`ALTER TABLE companies ADD COLUMN tags TEXT DEFAULT '[]'`); } catch {}
+
+  // ── Pipeline stages ───────────────────────────────────────────────────────
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS pipeline_stages (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      name       TEXT    NOT NULL,
+      value      TEXT    NOT NULL UNIQUE,
+      color      TEXT    NOT NULL DEFAULT 'bg-gray-100 text-gray-800',
+      dot_color  TEXT    NOT NULL DEFAULT 'bg-gray-400',
+      probability INTEGER NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      is_active  INTEGER NOT NULL DEFAULT 1,
+      is_default INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+
+  // Seed default stages if table is empty
+  const stageCount = await db.get('SELECT COUNT(*) as n FROM pipeline_stages');
+  if (stageCount.n === 0) {
+    const defaults = [
+      ['Lead',        'lead',        'bg-gray-100 text-gray-800',   'bg-gray-400',   10, 1, 1],
+      ['Calificado',  'qualified',   'bg-blue-100 text-blue-800',   'bg-blue-500',   25, 2, 1],
+      ['Propuesta',   'proposal',    'bg-yellow-100 text-yellow-800','bg-yellow-500', 50, 3, 1],
+      ['Negociación', 'negotiation', 'bg-orange-100 text-orange-800','bg-orange-500', 75, 4, 1],
+      ['Ganado',      'won',         'bg-green-100 text-green-800',  'bg-green-500',  100,5, 1],
+      ['Perdido',     'lost',        'bg-red-100 text-red-800',      'bg-red-500',    0,  6, 1],
+    ];
+    for (const [name, value, color, dot_color, probability, sort_order, is_default] of defaults) {
+      await db.run(
+        'INSERT INTO pipeline_stages (name, value, color, dot_color, probability, sort_order, is_default) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        name, value, color, dot_color, probability, sort_order, is_default
+      );
+    }
+  }
+
+  // ── Webhooks ──────────────────────────────────────────────────────────────
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS webhook_configs (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      name       TEXT    NOT NULL,
+      url        TEXT    NOT NULL,
+      events     TEXT    NOT NULL DEFAULT '[]',
+      secret     TEXT,
+      is_active  INTEGER NOT NULL DEFAULT 1,
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS webhook_deliveries (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      webhook_id    INTEGER NOT NULL REFERENCES webhook_configs(id) ON DELETE CASCADE,
+      event         TEXT    NOT NULL,
+      payload       TEXT    NOT NULL,
+      response_status INTEGER,
+      response_body TEXT,
+      error         TEXT,
+      delivered_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+  await db.exec(`CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_webhook ON webhook_deliveries(webhook_id)`);
+
   console.log('✅ Database migrations complete');
 }
 

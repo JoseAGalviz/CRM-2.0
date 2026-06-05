@@ -7,11 +7,21 @@ export const authAPI = {
   logout: (refreshToken) => client.post('/auth/logout', { refreshToken }),
   refresh: (refreshToken) => client.post('/auth/refresh', { refreshToken }),
   me: () => client.get('/auth/me'),
+  forgotPassword: (email) => client.post('/auth/forgot-password', { email }),
+  resetPassword: (token, password) => client.post('/auth/reset-password', { token, password }),
+  twoFA: {
+    status: () => client.get('/auth/2fa/status'),
+    setup: () => client.post('/auth/2fa/setup'),
+    enable: (token) => client.post('/auth/2fa/enable', { token }),
+    disable: (token) => client.post('/auth/2fa/disable', { token }),
+    verify: (userId, token) => client.post('/auth/2fa/verify', { userId, token }),
+  },
 }
 
 // Users
 export const usersAPI = {
   list: () => client.get('/users'),
+  directory: () => client.get('/users/directory'),
   get: (id) => client.get(`/users/${id}`),
   updateMe: (data) => client.put('/users/me', data),
   changePassword: (data) => client.put('/users/me/password', data),
@@ -38,6 +48,11 @@ export const contactsAPI = {
   create: (data) => client.post('/contacts', data),
   update: (id, data) => client.put(`/contacts/${id}`, data),
   delete: (id) => client.delete(`/contacts/${id}`),
+  import: (rows) => client.post('/contacts/import', { rows }),
+  bulkDelete: (ids) => client.post('/contacts/bulk-delete', { ids }),
+  bulkAssign: (ids, owner_id) => client.patch('/contacts/bulk-assign', { ids, owner_id }),
+  findDuplicates: () => client.get('/contacts/find-duplicates'),
+  merge: (keepId, mergeId) => client.post('/contacts/merge', { keepId, mergeId }),
   deals: (id) => client.get(`/contacts/${id}/deals`),
   activities: (id) => client.get(`/contacts/${id}/activities`),
   tasks: (id) => client.get(`/contacts/${id}/tasks`),
@@ -51,8 +66,13 @@ export const companiesAPI = {
   create: (data) => client.post('/companies', data),
   update: (id, data) => client.put(`/companies/${id}`, data),
   delete: (id) => client.delete(`/companies/${id}`),
+  import: (rows) => client.post('/companies/import', { rows }),
+  bulkDelete: (ids) => client.post('/companies/bulk-delete', { ids }),
+  merge: (keepId, mergeId) => client.post('/companies/merge', { keepId, mergeId }),
   contacts: (id) => client.get(`/companies/${id}/contacts`),
   deals: (id) => client.get(`/companies/${id}/deals`),
+  activities: (id) => client.get(`/companies/${id}/activities`),
+  notes: (id) => client.get(`/companies/${id}/notes`),
 }
 
 // Deals
@@ -63,6 +83,7 @@ export const dealsAPI = {
   update: (id, data) => client.put(`/deals/${id}`, data),
   updateStage: (id, stage, lost_reason) => client.patch(`/deals/${id}/stage`, { stage, lost_reason }),
   delete: (id) => client.delete(`/deals/${id}`),
+  bulkDelete: (ids) => client.post('/deals/bulk-delete', { ids }),
   activities: (id) => client.get(`/deals/${id}/activities`),
   tasks: (id) => client.get(`/deals/${id}/tasks`),
   notes: (id) => client.get(`/deals/${id}/notes`),
@@ -98,4 +119,28 @@ export const notesAPI = {
 // Search
 export const searchAPI = {
   global: (q, limit = 5) => client.get('/search', { params: { q, limit } }),
+}
+
+// Audit logs
+export const auditAPI = {
+  list: (params) => client.get('/audit-logs', { params }),
+}
+
+// Pipeline stages
+export const pipelineAPI = {
+  list: () => client.get('/pipeline'),
+  create: (data) => client.post('/pipeline', data),
+  update: (id, data) => client.put(`/pipeline/${id}`, data),
+  delete: (id) => client.delete(`/pipeline/${id}`),
+}
+
+// Webhooks
+export const webhooksAPI = {
+  list: () => client.get('/webhooks'),
+  create: (data) => client.post('/webhooks', data),
+  update: (id, data) => client.put(`/webhooks/${id}`, data),
+  toggle: (id) => client.patch(`/webhooks/${id}/toggle`),
+  delete: (id) => client.delete(`/webhooks/${id}`),
+  deliveries: (id, limit = 20) => client.get(`/webhooks/${id}/deliveries`, { params: { limit } }),
+  test: (id) => client.post(`/webhooks/${id}/test`),
 }

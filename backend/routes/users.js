@@ -12,6 +12,12 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
   return success(res, users);
 });
 
+// Public to all authenticated users — returns only safe fields for assignment dropdowns
+router.get('/directory', authenticate, async (req, res) => {
+  const users = await db.all('SELECT id, name, avatar_url FROM users WHERE is_active = 1 ORDER BY name ASC');
+  return success(res, users);
+});
+
 router.get('/:id', authenticate, async (req, res) => {
   const user = await db.get('SELECT id, name, email, role, avatar_url, is_active, last_login, created_at FROM users WHERE id = ?', req.params.id);
   if (!user) return notFound(res, 'User not found');
@@ -123,10 +129,10 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     if (Number(id) === req.user.id) return forbidden(res, 'Cannot delete your own account');
-    const target = await db.get('SELECT id FROM users WHERE id = ?', id);
+    const target = await db.get('SELECT id, is_active FROM users WHERE id = ?', id);
     if (!target) return notFound(res, 'User not found');
-    await db.run('DELETE FROM users WHERE id = ?', id);
-    return success(res, null, 'User deleted');
+    await db.run('UPDATE users SET is_active = 0 WHERE id = ?', id);
+    return success(res, null, 'User deactivated');
   } catch (err) {
     return error(res, 'Error deleting user');
   }

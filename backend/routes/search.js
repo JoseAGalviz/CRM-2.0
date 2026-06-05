@@ -9,12 +9,12 @@ router.get('/', authenticate, async (req, res) => {
   try {
     const { q = '', limit = 6 } = req.query;
     const trimmed = q.trim();
-    if (!trimmed) return success(res, { contacts: [], companies: [], deals: [] });
+    if (!trimmed) return success(res, { contacts: [], companies: [], deals: [], tasks: [], activities: [], notes: [] });
 
     const like = `%${trimmed}%`;
     const n = Math.min(Number(limit), 20);
 
-    const [contacts, companies, deals] = await Promise.all([
+    const [contacts, companies, deals, tasks, activities, notes] = await Promise.all([
       db.all(
         `SELECT c.id, c.first_name, c.last_name, c.email, c.job_title, co.name AS company_name
          FROM contacts c
@@ -44,9 +44,43 @@ router.get('/', authenticate, async (req, res) => {
          LIMIT ?`,
         like, n
       ),
+      db.all(
+        `SELECT t.id, t.title, t.status, t.priority, t.due_date,
+                u.name AS assigned_name
+         FROM tasks t
+         LEFT JOIN users u ON t.assigned_to = u.id
+         WHERE t.is_deleted = 0 AND t.title LIKE ?
+         ORDER BY t.due_date ASC
+         LIMIT ?`,
+        like, n
+      ),
+      db.all(
+        `SELECT a.id, a.type, a.subject, a.occurred_at,
+                c.first_name || ' ' || c.last_name AS contact_name
+         FROM activities a
+         LEFT JOIN contacts c ON a.contact_id = c.id
+         WHERE a.is_deleted = 0 AND a.subject LIKE ?
+         ORDER BY a.occurred_at DESC
+         LIMIT ?`,
+        like, n
+      ),
+      db.all(
+        `SELECT n.id, n.content, n.created_at,
+                c.first_name || ' ' || c.last_name AS contact_name,
+                co.name AS company_name, d.title AS deal_title,
+                n.contact_id, n.company_id, n.deal_id
+         FROM notes n
+         LEFT JOIN contacts c ON n.contact_id = c.id
+         LEFT JOIN companies co ON n.company_id = co.id
+         LEFT JOIN deals d ON n.deal_id = d.id
+         WHERE n.is_deleted = 0 AND n.content LIKE ?
+         ORDER BY n.created_at DESC
+         LIMIT ?`,
+        like, n
+      ),
     ]);
 
-    return success(res, { contacts, companies, deals });
+    return success(res, { contacts, companies, deals, tasks, activities, notes });
   } catch (err) {
     console.error(err);
     return error(res, 'Search failed');

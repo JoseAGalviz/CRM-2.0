@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { usersAPI } from '../api/index'
+import { usersAPI, authAPI } from '../api/index'
 import toast from 'react-hot-toast'
 import Spinner from '../components/ui/Spinner'
 import Avatar from '../components/ui/Avatar'
@@ -12,6 +12,14 @@ export default function ProfilePage() {
   const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirm: '' })
   const [savingProfile, setSavingProfile] = useState(false)
   const [savingPw, setSavingPw] = useState(false)
+  const [twoFAEnabled, setTwoFAEnabled] = useState(false)
+  const [twoFASetup, setTwoFASetup] = useState(null)
+  const [totpToken, setTotpToken] = useState('')
+  const [savingTwoFA, setSavingTwoFA] = useState(false)
+
+  useEffect(() => {
+    authAPI.twoFA.status().then(r => setTwoFAEnabled(r.data.data.enabled)).catch(() => {})
+  }, [])
 
   const handleProfile = async (e) => {
     e.preventDefault(); setSavingProfile(true)
@@ -95,6 +103,71 @@ export default function ProfilePage() {
             </button>
           </div>
         </form>
+      </div>
+
+      {/* 2FA */}
+      <div className="card p-6">
+        <h3 className="text-base font-semibold text-gray-900 border-b border-gray-100 pb-2 mb-4">
+          Autenticación de dos factores (2FA)
+          <span className={`ml-3 badge ${twoFAEnabled ? 'badge-green' : 'badge-gray'}`}>{twoFAEnabled ? 'Activado' : 'Desactivado'}</span>
+        </h3>
+
+        {!twoFAEnabled && !twoFASetup && (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">Protege tu cuenta con un código de verificación generado por una app como Google Authenticator o Authy.</p>
+            <button onClick={async () => {
+              setSavingTwoFA(true)
+              try { const r = await authAPI.twoFA.setup(); setTwoFASetup(r.data.data) }
+              catch { toast.error('Error configurando 2FA') }
+              finally { setSavingTwoFA(false) }
+            }} disabled={savingTwoFA} className="btn-primary">
+              {savingTwoFA ? <Spinner size="sm" /> : 'Configurar 2FA'}
+            </button>
+          </div>
+        )}
+
+        {!twoFAEnabled && twoFASetup && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">Escanea el código QR con tu app de autenticación:</p>
+            <img src={twoFASetup.qrDataUrl} alt="QR 2FA" className="w-44 h-44 border border-gray-200 rounded-lg" />
+            <p className="text-xs text-gray-500">Clave manual: <code className="bg-gray-100 px-1 rounded font-mono">{twoFASetup.secret}</code></p>
+            <div className="flex gap-3">
+              <input className="input flex-1" placeholder="Código de 6 dígitos" value={totpToken} onChange={e => setTotpToken(e.target.value)} maxLength={6} />
+              <button onClick={async () => {
+                setSavingTwoFA(true)
+                try {
+                  await authAPI.twoFA.enable(totpToken)
+                  toast.success('2FA activado')
+                  setTwoFAEnabled(true); setTwoFASetup(null); setTotpToken('')
+                } catch { toast.error('Código incorrecto') }
+                finally { setSavingTwoFA(false) }
+              }} disabled={savingTwoFA || totpToken.length < 6} className="btn-primary">
+                {savingTwoFA ? <Spinner size="sm" /> : 'Verificar y activar'}
+              </button>
+            </div>
+            <button onClick={() => { setTwoFASetup(null); setTotpToken('') }} className="text-sm text-gray-500 hover:text-gray-700">Cancelar</button>
+          </div>
+        )}
+
+        {twoFAEnabled && (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">2FA está activo. Ingresa un código de tu app para desactivarlo.</p>
+            <div className="flex gap-3">
+              <input className="input flex-1" placeholder="Código de 6 dígitos" value={totpToken} onChange={e => setTotpToken(e.target.value)} maxLength={6} />
+              <button onClick={async () => {
+                setSavingTwoFA(true)
+                try {
+                  await authAPI.twoFA.disable(totpToken)
+                  toast.success('2FA desactivado')
+                  setTwoFAEnabled(false); setTotpToken('')
+                } catch { toast.error('Código incorrecto') }
+                finally { setSavingTwoFA(false) }
+              }} disabled={savingTwoFA || totpToken.length < 6} className="bg-red-600 text-white btn btn-sm hover:bg-red-700">
+                {savingTwoFA ? <Spinner size="sm" /> : 'Desactivar 2FA'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Security info */}

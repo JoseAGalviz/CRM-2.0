@@ -11,8 +11,11 @@ import ConfirmDialog from '../components/ui/ConfirmDialog'
 import Pagination from '../components/ui/Pagination'
 import EmptyState from '../components/ui/EmptyState'
 import Spinner from '../components/ui/Spinner'
+import CsvImportModal from '../components/ui/CsvImportModal'
 
-const initForm = { name: '', industry: '', website: '', phone: '', email: '', address: '', city: '', country: '', size: '', annual_revenue: '', description: '' }
+const IMPORT_HEADERS = ['name', 'industry', 'email', 'phone', 'website', 'city', 'country']
+
+const initForm = { name: '', industry: '', website: '', phone: '', email: '', address: '', city: '', country: '', size: '', annual_revenue: '', description: '', tags: [] }
 
 export default function CompaniesPage() {
   const [companies, setCompanies] = useState([])
@@ -26,6 +29,9 @@ export default function CompaniesPage() {
   const [form, setForm] = useState(initForm)
   const [saving, setSaving] = useState(false)
   const [deleteId, setDeleteId] = useState(null)
+  const [importModal, setImportModal] = useState(false)
+  const [selected, setSelected] = useState(new Set())
+  const [bulkConfirm, setBulkConfirm] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -42,7 +48,7 @@ export default function CompaniesPage() {
   useEffect(() => { setPage(1) }, [search])
 
   const openCreate = () => { setForm(initForm); setEditing(null); setModal('create') }
-  const openEdit = (c) => { setForm({ ...initForm, ...c, annual_revenue: c.annual_revenue || '' }); setEditing(c); setModal('edit') }
+  const openEdit = (c) => { setForm({ ...initForm, ...c, annual_revenue: c.annual_revenue || '', tags: Array.isArray(c.tags) ? c.tags : [] }); setEditing(c); setModal('edit') }
 
   const handleSubmit = async (e) => {
     e.preventDefault(); setSaving(true)
@@ -60,8 +66,19 @@ export default function CompaniesPage() {
   }
 
   const h = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }))
-
   const sizeLabel = (s) => COMPANY_SIZES.find(c => c.value === s)?.label || s || '—'
+
+  const toggleSelect = (id) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const toggleAll = () => setSelected(s => s.size === companies.length ? new Set() : new Set(companies.map(c => c.id)))
+  const clearSelected = () => setSelected(new Set())
+
+  const handleBulkDelete = async () => {
+    try {
+      await companiesAPI.bulkDelete([...selected])
+      toast.success(`${selected.size} empresas eliminadas`)
+      clearSelected(); setBulkConfirm(false); load()
+    } catch { toast.error('Error eliminando') }
+  }
 
   return (
     <div className="space-y-4">
@@ -77,11 +94,27 @@ export default function CompaniesPage() {
         <button onClick={() => exportToCSV(companies, 'empresas', COMPANY_COLUMNS)} className="btn-secondary flex-shrink-0 text-sm">
           ↓ CSV
         </button>
+        <button onClick={() => setImportModal(true)} className="btn-secondary flex-shrink-0 text-sm">
+          ↑ Importar
+        </button>
         <button onClick={openCreate} className="btn-primary flex-shrink-0">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
           Nueva empresa
         </button>
       </div>
+
+      {/* Bulk bar */}
+      {selected.size > 0 && (
+        <div className="card p-3 flex flex-wrap items-center gap-3 bg-primary-50 border border-primary-200">
+          <span className="text-sm font-medium text-primary-800">{selected.size} seleccionada{selected.size !== 1 ? 's' : ''}</span>
+          <div className="flex gap-2 ml-auto">
+            <button onClick={() => setBulkConfirm(true)} className="btn-sm text-sm bg-red-600 text-white hover:bg-red-700 rounded-lg px-3 py-1.5">
+              Eliminar {selected.size}
+            </button>
+            <button onClick={clearSelected} className="btn-ghost btn-sm text-sm">Cancelar</button>
+          </div>
+        </div>
+      )}
 
       <div className="card overflow-hidden">
         {loading ? (
@@ -94,11 +127,19 @@ export default function CompaniesPage() {
             <div className="hidden md:block overflow-x-auto">
               <table className="table">
                 <thead><tr>
+                  <th className="w-8">
+                    <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-primary-600"
+                      checked={companies.length > 0 && selected.size === companies.length} onChange={toggleAll} />
+                  </th>
                   <th>Empresa</th><th>Industria</th><th>Tamaño</th><th>Contactos</th><th>Negocios</th><th>Ingresos</th><th></th>
                 </tr></thead>
                 <tbody>
                   {companies.map(c => (
-                    <tr key={c.id}>
+                    <tr key={c.id} className={selected.has(c.id) ? 'bg-primary-50' : ''}>
+                      <td onClick={e => { e.stopPropagation(); toggleSelect(c.id) }}>
+                        <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-primary-600"
+                          checked={selected.has(c.id)} onChange={() => toggleSelect(c.id)} />
+                      </td>
                       <td>
                         <div>
                           <Link to={`/companies/${c.id}`} className="font-medium text-primary-600 hover:text-primary-700">{c.name}</Link>
@@ -174,6 +215,15 @@ export default function CompaniesPage() {
             <div><label className="label">País</label><input name="country" value={form.country} onChange={h} className="input" /></div>
           </div>
           <div><label className="label">Descripción</label><textarea name="description" value={form.description} onChange={h} rows={3} className="input resize-none" /></div>
+          <div>
+            <label className="label">Tags (separados por coma)</label>
+            <input
+              className="input"
+              placeholder="tag1, tag2, tag3"
+              value={Array.isArray(form.tags) ? form.tags.join(', ') : ''}
+              onChange={e => setForm(f => ({ ...f, tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) }))}
+            />
+          </div>
           <div className="flex gap-3 justify-end pt-2">
             <button type="button" onClick={() => setModal(null)} className="btn-secondary">Cancelar</button>
             <button type="submit" disabled={saving} className="btn-primary">{saving ? <Spinner size="sm" /> : (editing ? 'Guardar' : 'Crear empresa')}</button>
@@ -183,6 +233,18 @@ export default function CompaniesPage() {
 
       <ConfirmDialog isOpen={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={handleDelete}
         title="Eliminar empresa" message="¿Estás seguro? Los contactos y negocios asociados no se eliminarán." />
+
+      <ConfirmDialog isOpen={bulkConfirm} onClose={() => setBulkConfirm(false)} onConfirm={handleBulkDelete}
+        title={`Eliminar ${selected.size} empresas`} message={`¿Estás seguro? Se eliminarán ${selected.size} empresas. Los contactos y negocios asociados no se eliminarán.`} />
+
+      <CsvImportModal
+        isOpen={importModal}
+        onClose={() => setImportModal(false)}
+        onImport={companiesAPI.import}
+        entityLabel="empresas"
+        templateHeaders={IMPORT_HEADERS}
+        onSuccess={load}
+      />
     </div>
   )
 }

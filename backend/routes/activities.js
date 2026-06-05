@@ -5,6 +5,7 @@ const { validate } = require('../middleware/validate');
 const { authenticate } = require('../middleware/auth');
 const { db } = require('../db/database');
 const { success, created, error, notFound } = require('../utils/response');
+const { logAudit } = require('../utils/audit');
 
 const activityValidators = [
   body('type').isIn(['call', 'email', 'meeting', 'demo', 'follow_up', 'other']),
@@ -51,6 +52,7 @@ router.post('/', authenticate, activityValidators, async (req, res) => {
       type, subject, description || null, outcome || null, duration_min || null, occurred_at || new Date().toISOString(), contact_id || null, company_id || null, deal_id || null, req.user.id
     );
     const activity = await db.get('SELECT * FROM activities WHERE id = ?', result.lastInsertRowid);
+    await logAudit(db, req.user.id, 'create', 'activity', activity.id, activity.subject, null, req.ip);
     return created(res, activity);
   } catch (err) { return error(res, 'Error creating activity'); }
 });
@@ -63,7 +65,7 @@ router.get('/:id', authenticate, async (req, res) => {
 
 router.put('/:id', authenticate, activityValidators, async (req, res) => {
   try {
-    const existing = await db.get('SELECT id FROM activities WHERE id = ? AND is_deleted = 0', req.params.id);
+    const existing = await db.get('SELECT * FROM activities WHERE id = ? AND is_deleted = 0', req.params.id);
     if (!existing) return notFound(res, 'Activity not found');
     const { type, subject, description, outcome, duration_min, occurred_at, contact_id, company_id, deal_id } = req.body;
     await db.run(
@@ -71,15 +73,19 @@ router.put('/:id', authenticate, activityValidators, async (req, res) => {
       type, subject, description || null, outcome || null, duration_min || null, occurred_at || new Date().toISOString(), contact_id || null, company_id || null, deal_id || null, req.params.id
     );
     const activity = await db.get('SELECT * FROM activities WHERE id = ?', req.params.id);
+    await logAudit(db, req.user.id, 'update', 'activity', activity.id, activity.subject, null, req.ip);
     return success(res, activity, 'Activity updated');
   } catch (err) { return error(res, 'Error updating activity'); }
 });
 
 router.delete('/:id', authenticate, async (req, res) => {
-  const existing = await db.get('SELECT id FROM activities WHERE id = ? AND is_deleted = 0', req.params.id);
-  if (!existing) return notFound(res, 'Activity not found');
-  await db.run('UPDATE activities SET is_deleted = 1 WHERE id = ?', req.params.id);
-  return success(res, null, 'Activity deleted');
+  try {
+    const existing = await db.get('SELECT id, subject FROM activities WHERE id = ? AND is_deleted = 0', req.params.id);
+    if (!existing) return notFound(res, 'Activity not found');
+    await db.run('UPDATE activities SET is_deleted = 1 WHERE id = ?', req.params.id);
+    await logAudit(db, req.user.id, 'delete', 'activity', existing.id, existing.subject, null, req.ip);
+    return success(res, null, 'Activity deleted');
+  } catch (err) { return error(res, 'Error deleting activity'); }
 });
 
 module.exports = router;

@@ -5,6 +5,7 @@ const { validate } = require('../middleware/validate');
 const { authenticate } = require('../middleware/auth');
 const { db } = require('../db/database');
 const { success, created, error, notFound, forbidden } = require('../utils/response');
+const { logAudit } = require('../utils/audit');
 
 router.get('/', authenticate, async (req, res) => {
   try {
@@ -35,6 +36,7 @@ router.post('/', authenticate, [body('content').trim().notEmpty(), validate], as
       content, contact_id || null, deal_id || null, company_id || null, req.user.id
     );
     const note = await db.get('SELECT n.*, u.name as owner_name FROM notes n LEFT JOIN users u ON n.owner_id = u.id WHERE n.id = ?', result.lastInsertRowid);
+    await logAudit(db, req.user.id, 'create', 'note', note.id, `Note #${note.id}`, null, req.ip);
     return created(res, note);
   } catch (err) { return error(res, 'Error creating note'); }
 });
@@ -46,6 +48,7 @@ router.put('/:id', authenticate, [body('content').trim().notEmpty(), validate], 
     if (note.owner_id !== req.user.id && req.user.role !== 'admin') return forbidden(res, 'Cannot edit another user\'s note');
     await db.run('UPDATE notes SET content = ? WHERE id = ?', req.body.content, req.params.id);
     const updated = await db.get('SELECT n.*, u.name as owner_name FROM notes n LEFT JOIN users u ON n.owner_id = u.id WHERE n.id = ?', req.params.id);
+    await logAudit(db, req.user.id, 'update', 'note', note.id, `Note #${note.id}`, null, req.ip);
     return success(res, updated, 'Note updated');
   } catch (err) { return error(res, 'Error updating note'); }
 });
@@ -56,6 +59,7 @@ router.delete('/:id', authenticate, async (req, res) => {
     if (!note) return notFound(res, 'Note not found');
     if (note.owner_id !== req.user.id && req.user.role !== 'admin') return forbidden(res, 'Cannot delete another user\'s note');
     await db.run('UPDATE notes SET is_deleted = 1 WHERE id = ?', req.params.id);
+    await logAudit(db, req.user.id, 'delete', 'note', note.id, `Note #${note.id}`, null, req.ip);
     return success(res, null, 'Note deleted');
   } catch (err) { return error(res, 'Error deleting note'); }
 });

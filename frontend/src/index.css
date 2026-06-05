@@ -91,3 +91,13 @@
   .page-title   { @apply text-xl sm:text-2xl font-bold text-gray-900; }
   .section-title { @apply text-base font-semibold text-gray-900; }
 }
+
+/* ── Print / PDF export ──────────────────────────────────────────────────── */
+@media print {
+  aside, header, nav, .no-print { display: none !important; }
+  body { background: white !important; }
+  main { margin: 0 !important; padding: 0 !important; }
+  .card { box-shadow: none !important; border: 1px solid #e5e7eb !important; page-break-inside: avoid; }
+  .print-title { display: block !important; font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; }
+  @page { margin: 1.5cm; size: A4; }
+}

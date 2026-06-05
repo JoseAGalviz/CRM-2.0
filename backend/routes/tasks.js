@@ -5,6 +5,8 @@ const { validate } = require('../middleware/validate');
 const { authenticate } = require('../middleware/auth');
 const { db } = require('../db/database');
 const { success, created, error, notFound } = require('../utils/response');
+const { logAudit, diffEntities } = require('../utils/audit');
+const { triggerWebhook } = require('../utils/webhook');
 
 const taskValidators = [
   body('title').trim().notEmpty().withMessage('Task title is required').isLength({ max: 200 }),
@@ -52,6 +54,8 @@ router.post('/', authenticate, taskValidators, async (req, res) => {
       title, description || null, status || 'pending', priority || 'medium', due_date || null, assigned_to || req.user.id, req.user.id, contact_id || null, company_id || null, deal_id || null
     );
     const task = await db.get('SELECT * FROM tasks WHERE id = ?', result.lastInsertRowid);
+    await logAudit(db, req.user.id, 'create', 'task', task.id, task.title, null, req.ip);
+    triggerWebhook('task.created', task);
     return created(res, task);
   } catch (err) { return error(res, 'Error creating task'); }
 });
@@ -64,35 +68,41 @@ router.get('/:id', authenticate, async (req, res) => {
 
 router.put('/:id', authenticate, taskValidators, async (req, res) => {
   try {
-    const existing = await db.get('SELECT id FROM tasks WHERE id = ? AND is_deleted = 0', req.params.id);
+    const existing = await db.get('SELECT * FROM tasks WHERE id = ? AND is_deleted = 0', req.params.id);
     if (!existing) return notFound(res, 'Task not found');
     const { title, description, status, priority, due_date, assigned_to, contact_id, company_id, deal_id } = req.body;
     const completed_at = status === 'done' ? new Date().toISOString() : null;
     await db.run(
-      'UPDATE tasks SET title=?, description=?, status=?, priority=?, due_date=?, assigned_to=?, contact_id=?, company_id=?, deal_id=?, completed_at=COALESCE(?, completed_at) WHERE id=?',
+      'UPDATE tasks SET title=?, description=?, status=?, priority=?, due_date=?, assigned_to=?, contact_id=?, company_id=?, deal_id=?, completed_at=? WHERE id=?',
       title, description || null, status || 'pending', priority || 'medium', due_date || null, assigned_to || req.user.id, contact_id || null, company_id || null, deal_id || null, completed_at, req.params.id
     );
     const task = await db.get('SELECT * FROM tasks WHERE id = ?', req.params.id);
+    const changes = diffEntities('task', existing, task);
+    await logAudit(db, req.user.id, 'update', 'task', task.id, task.title, changes, req.ip);
     return success(res, task, 'Task updated');
   } catch (err) { return error(res, 'Error updating task'); }
 });
 
 router.patch('/:id/status', authenticate, [body('status').isIn(['pending', 'in_progress', 'done', 'cancelled']), validate], async (req, res) => {
   try {
-    const existing = await db.get('SELECT id FROM tasks WHERE id = ? AND is_deleted = 0', req.params.id);
+    const existing = await db.get('SELECT * FROM tasks WHERE id = ? AND is_deleted = 0', req.params.id);
     if (!existing) return notFound(res, 'Task not found');
     const { status } = req.body;
     const completed_at = status === 'done' ? new Date().toISOString() : null;
     await db.run('UPDATE tasks SET status=?, completed_at=? WHERE id=?', status, completed_at, req.params.id);
     const task = await db.get('SELECT * FROM tasks WHERE id = ?', req.params.id);
+    const changes = diffEntities('task', existing, task);
+    await logAudit(db, req.user.id, 'update', 'task', task.id, task.title, changes, req.ip);
+    if (status === 'done') triggerWebhook('task.completed', task);
     return success(res, task, 'Task status updated');
   } catch (err) { return error(res, 'Error updating task status'); }
 });
 
 router.delete('/:id', authenticate, async (req, res) => {
-  const existing = await db.get('SELECT id FROM tasks WHERE id = ? AND is_deleted = 0', req.params.id);
+  const existing = await db.get('SELECT id, title FROM tasks WHERE id = ? AND is_deleted = 0', req.params.id);
   if (!existing) return notFound(res, 'Task not found');
   await db.run('UPDATE tasks SET is_deleted = 1 WHERE id = ?', req.params.id);
+  await logAudit(db, req.user.id, 'delete', 'task', existing.id, existing.title, null, req.ip);
   return success(res, null, 'Task deleted');
 });
 

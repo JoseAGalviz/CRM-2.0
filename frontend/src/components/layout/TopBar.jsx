@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import GlobalSearch from '../ui/GlobalSearch'
+import NotificationBell from '../ui/NotificationBell'
 
 const pageTitles = {
   '/dashboard':  'Dashboard',
@@ -71,6 +72,9 @@ export default function TopBar({ onMenuOpen }) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </button>
+
+        {/* Notification bell */}
+        <NotificationBell />
 
         {/* Date – tablet+ */}
         <p className="hidden md:block text-xs text-gray-400 capitalize">

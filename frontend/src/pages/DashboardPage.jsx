@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { dashboardAPI } from '../api/index'
 import { formatCurrency, formatDateRelative } from '../utils/formatters'
-import { DEAL_STAGES, ACTIVITY_TYPES } from '../utils/constants'
+import { ACTIVITY_TYPES } from '../utils/constants'
+import { usePipelineStages } from '../hooks/usePipelineStages'
 import toast from 'react-hot-toast'
 import Spinner from '../components/ui/Spinner'
 import {
@@ -31,11 +32,16 @@ function MetricCard({ title, value, subtitle, icon, color, to }) {
   return to ? <Link to={to}>{card}</Link> : card
 }
 
-const STAGE_COLORS = { lead: '#94a3b8', qualified: '#3b82f6', proposal: '#f59e0b', negotiation: '#f97316', won: '#10b981', lost: '#ef4444' }
+const DOT_TO_HEX = {
+  'bg-gray-400': '#94a3b8', 'bg-blue-500': '#3b82f6', 'bg-yellow-500': '#f59e0b',
+  'bg-orange-500': '#f97316', 'bg-green-500': '#10b981', 'bg-red-500': '#ef4444',
+  'bg-violet-500': '#8b5cf6', 'bg-amber-500': '#f59e0b',
+}
 
 export default function DashboardPage() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const { stages: DEAL_STAGES } = usePipelineStages()
 
   useEffect(() => {
     Promise.all([
@@ -44,21 +50,25 @@ export default function DashboardPage() {
       dashboardAPI.dealsByMonth(),
       dashboardAPI.recentActivities(),
       dashboardAPI.overdueTasks(),
-    ]).then(([m, s, mo, a, t]) => {
-      setData({ metrics: m.data.data, byStage: s.data.data, byMonth: mo.data.data, activities: a.data.data, tasks: t.data.data })
+      dashboardAPI.topDeals(),
+    ]).then(([m, s, mo, a, t, td]) => {
+      setData({ metrics: m.data.data, byStage: s.data.data, byMonth: mo.data.data, activities: a.data.data, tasks: t.data.data, topDeals: td.data.data })
     }).catch(() => toast.error('Error cargando dashboard')).finally(() => setLoading(false))
   }, [])
 
   if (loading) return <div className="flex justify-center py-20"><Spinner size="lg" /></div>
   if (!data) return null
 
-  const { metrics, byStage, byMonth, activities, tasks } = data
+  const { metrics, byStage, byMonth, activities, tasks, topDeals } = data
 
-  const pieData = byStage.map(s => ({
-    name: DEAL_STAGES.find(d => d.value === s.stage)?.label || s.stage,
-    value: s.count,
-    color: STAGE_COLORS[s.stage]
-  }))
+  const pieData = byStage.map(s => {
+    const stageInfo = DEAL_STAGES.find(d => d.value === s.stage)
+    return {
+      name: stageInfo?.label || s.stage,
+      value: s.count,
+      color: DOT_TO_HEX[stageInfo?.dot] || '#94a3b8',
+    }
+  })
 
   const monthData = byMonth.map(m => ({
     mes: m.month,
@@ -68,6 +78,17 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Print title (hidden on screen) */}
+      <span className="print-title hidden">Dashboard CRM Pro — {new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+
+      {/* Export button */}
+      <div className="flex justify-end no-print">
+        <button onClick={() => window.print()} className="btn-secondary text-sm">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+          Exportar PDF
+        </button>
+      </div>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard title="Contactos"        value={metrics.contacts}   icon={<UsersIcon className="w-5 h-5" />}           color="bg-violet-50 text-violet-600" to="/contacts" />
@@ -167,6 +188,31 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Top deals */}
+      {topDeals && topDeals.length > 0 && (
+        <div className="card">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <h2 className="text-base font-semibold text-gray-900">Top negocios activos</h2>
+            <Link to="/deals" className="text-sm text-primary-600 hover:text-primary-700 font-medium">Ver todos</Link>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {topDeals.map((d, i) => (
+              <Link key={d.id} to={`/deals/${d.id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors block">
+                <span className="w-6 text-center text-sm font-bold text-gray-400">{i + 1}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{d.title}</p>
+                  <p className="text-xs text-gray-500">{d.contact_name || d.company_name || '—'}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold text-primary-600">{formatCurrency(d.value, d.currency)}</p>
+                  <p className="text-xs text-gray-400">{d.probability}%</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { authAPI } from '../api/index'
 import toast from 'react-hot-toast'
 import Spinner from '../components/ui/Spinner'
 import { UsersIcon, BriefcaseIcon, ChartBarIcon, ChatIcon, MailIcon } from '../components/ui/icons'
@@ -13,10 +14,13 @@ const features = [
 ]
 
 export default function LoginPage() {
-  const [form, setForm]       = useState({ email: '', password: '' })
-  const [loading, setLoading] = useState(false)
-  const { login }             = useAuth()
-  const navigate              = useNavigate()
+  const [form, setForm]         = useState({ email: '', password: '' })
+  const [loading, setLoading]   = useState(false)
+  const [twoFAStep, setTwoFAStep] = useState(false)
+  const [twoFAUserId, setTwoFAUserId] = useState(null)
+  const [totpCode, setTotpCode] = useState('')
+  const { login, loginWithTokens } = useAuth()
+  const navigate                = useNavigate()
 
   const handle = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }))
 
@@ -24,10 +28,30 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     try {
-      await login(form.email, form.password)
-      navigate('/dashboard')
+      const res = await login(form.email, form.password)
+      if (res?.requires2fa) {
+        setTwoFAStep(true)
+        setTwoFAUserId(res.userId)
+      } else {
+        navigate('/dashboard')
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Error al iniciar sesión')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const submit2FA = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      const res = await authAPI.twoFA.verify(twoFAUserId, totpCode)
+      const { user, accessToken, refreshToken } = res.data.data
+      loginWithTokens(user, accessToken, refreshToken)
+      navigate('/dashboard')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Código incorrecto')
     } finally {
       setLoading(false)
     }
@@ -103,9 +127,24 @@ export default function LoginPage() {
             <h1 className="text-2xl font-bold text-gray-900">CRM Pro</h1>
           </div>
 
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">Bienvenido de vuelta</h1>
-          <p className="text-sm text-gray-500 mb-8">Inicia sesión en tu cuenta</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">{twoFAStep ? 'Verificación 2FA' : 'Bienvenido de vuelta'}</h1>
+          <p className="text-sm text-gray-500 mb-8">{twoFAStep ? 'Ingresa el código de tu app de autenticación' : 'Inicia sesión en tu cuenta'}</p>
 
+          {twoFAStep ? (
+            <form onSubmit={submit2FA} className="space-y-5">
+              <div>
+                <label className="label">Código de 6 dígitos</label>
+                <input value={totpCode} onChange={e => setTotpCode(e.target.value)} required maxLength={6} pattern="[0-9]{6}"
+                  className="input text-center text-2xl tracking-[0.5em] font-mono" placeholder="000000" autoFocus />
+              </div>
+              <button type="submit" disabled={loading || totpCode.length < 6} className="btn-primary w-full btn-lg">
+                {loading ? <Spinner size="sm" /> : 'Verificar'}
+              </button>
+              <button type="button" onClick={() => { setTwoFAStep(false); setTotpCode('') }} className="w-full text-sm text-gray-500 hover:text-gray-700">
+                ← Volver al login
+              </button>
+            </form>
+          ) : (
           <form onSubmit={submit} className="space-y-5">
             <div>
               <label className="label">Email</label>
@@ -139,8 +178,14 @@ export default function LoginPage() {
             <button type="submit" disabled={loading} className="btn-primary w-full btn-lg">
               {loading ? <Spinner size="sm" /> : 'Iniciar sesión'}
             </button>
+            <div className="text-right">
+              <Link to="/forgot-password" className="text-sm text-primary-600 hover:text-primary-700">¿Olvidaste tu contraseña?</Link>
+            </div>
           </form>
 
+          )}
+
+          {!twoFAStep && (<>
           <div className="relative my-5">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-100" />
@@ -160,6 +205,7 @@ export default function LoginPage() {
               Regístrate gratis
             </Link>
           </p>
+          </>)}
         </div>
       </div>
     </div>
