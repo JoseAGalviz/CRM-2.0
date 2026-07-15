@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { io } from 'socket.io-client'
 import toast from 'react-hot-toast'
 import { chatApi } from '../api/chat'
+import { API_BASE_URL } from '../api/client'
 import { useAuth } from './AuthContext'
 
 function playNotificationBeep() {
@@ -159,7 +160,7 @@ export function ChatProvider({ children }) {
     if (!user) return
 
     const token  = localStorage.getItem('accessToken')
-    const socket = io('/', {
+    const socket = io(API_BASE_URL || '/', {
       auth:              { token },
       transports:        ['websocket', 'polling'],
       reconnectionDelay: 1000,

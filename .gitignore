@@ -3,6 +3,7 @@ backend/node_modules/
 frontend/node_modules/
 backend/crm.db
 backend/.env
+frontend/.env
 dist/
 .DS_Store
 *.log
